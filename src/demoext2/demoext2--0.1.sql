@@ -1,0 +1,5 @@
+CREATE FUNCTION de2_sum(int, int)
+RETURNS int
+AS 'MODULE_PATHNAME',
+    'kq_pg_extension'
+LANGUAGE C IMMUTABLE STRICT;
