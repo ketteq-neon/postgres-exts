@@ -43,17 +43,30 @@ kq_add_calendar_days(PG_FUNCTION_ARGS) {
     int32 calendar_interval = PG_GETARG_INT32(1);
     int32 calendar_id = PG_GETARG_INT32(2);
     //
-    //DateADT new_date = calmath_add_calendar_days(date, calendar_interval);
     DateADT new_date = calcache_add_calendar_days(date,
                                                   calendar_interval,
                                                   calcache_calendars[calendar_id - 1]);
     PG_RETURN_DATEADT(new_date);
 }
 
+PG_FUNCTION_INFO_V1(kq_add_calendar_days_by_calendar_name);
+Datum
+kq_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS) {
+    int32 date = PG_GETARG_INT32(0);
+    int32 calendar_interval = PG_GETARG_INT32(1);
+    text * calendar_name = PG_GETARG_TEXT_P(2);
+    //
+    // Demo
+    calcache_report_calendar_names();
+    //
+    DateADT new_date = 1234;
+    //
+    PG_RETURN_DATEADT(new_date);
+}
+
 PG_FUNCTION_INFO_V1(cache_all_calendars);
 Datum
 cache_all_calendars(PG_FUNCTION_ARGS) {
-    // TODO: Check
     if (calcache_filled) {
         PG_RETURN_DATUM(cc_get_cache(NULL));
     }
@@ -69,10 +82,16 @@ cache_all_calendars(PG_FUNCTION_ARGS) {
     int i;
     // Query #1, Get MIN_ID and MAX_ID of Calendars
     char *sql_get_min_max = "select min(ce.calendar_id), max(ce.calendar_id) from calendar_entries ce;";
-    // Query #2, Get Calendar's Entries Count
-    char *sql_get_entries_count_per_calendar_id = "select ce.calendar_id, count(*) from calendar_entries ce group by "
-                                                  "ce.calendar_id order by ce.calendar_id asc ;";
-    // Query #3, Get Entries of Calendars
+    // Query #2, Get Calendar's Entries Count and Names
+//    char *sql_get_entries_count_per_calendar_id = "select ce.calendar_id, count(*) from calendar_entries ce group by "
+//                                                  "ce.calendar_id order by ce.calendar_id asc ;";
+    char *sql_get_entries_count_per_calendar_id = "select ce.calendar_id, count(*), (select c.\"name\" "
+                                                  "from calendar c where c.id = ce.calendar_id) \"name\" from "
+                                                  "calendar_entries ce group by ce.calendar_id order by ce.calendar_id "
+                                                  "asc ;";
+    // Query #3, Get calendar names --> Can be done with the Q2. TODO: Optimize.
+    // char* sql_get_calendar_names = "select c.id, c.\"name\" from calendar c order by c.id asc;";
+    // Query #4, Get Entries of Calendars
     char *sql_get_entries = "select ce.calendar_id , ce.\"date\" from calendar_entries ce order by ce.calendar_id asc,"
                             " ce.\"date\" asc ;";
     // SPI
@@ -123,7 +142,7 @@ cache_all_calendars(PG_FUNCTION_ARGS) {
     //
     spi_tuple_table = SPI_tuptable;
     spi_tuple_desc = spi_tuple_table->tupdesc;
-    // Init
+    // Allocate Calendars and Calendar's Names Map
     for (uint64 row_counter = 0; row_counter < query_exec_rowcount; row_counter++) {
         HeapTuple cal_entries_count_tuple = spi_tuple_table->vals[row_counter];
         uint64 calendar_id = DatumGetUInt64(
@@ -136,12 +155,25 @@ cache_all_calendars(PG_FUNCTION_ARGS) {
                               spi_tuple_desc,
                               2,
                               &isNull));
-        elog(INFO, "Got: Calendar-Id: %" PRIu64 ", Entries: %" PRIu64, calendar_id, calendar_entry_count);
+        char * calendar_name = DatumGetCString(
+                SPI_getvalue(
+                        cal_entries_count_tuple,
+                        spi_tuple_desc,
+                        3
+                        )
+                );
+        elog(INFO, "Got: Name: %s, Calendar-Id: %" PRIu64 ", Entries: %" PRIu64,
+             calendar_name,
+             calendar_id, calendar_entry_count);
+
         calcache_calendars[calendar_id-1].calendar_id = calendar_id;
+
         calcache_init_calendar_entries(
                 &calcache_calendars[calendar_id-1],
                 calendar_entry_count
                 );
+        // Add The Calendar Name
+        calcache_init_add_calendar_name(calcache_calendars[calendar_id-1], calendar_name);
     }
     // -> Exec Q3
     query_exec_ret = SPI_execute(sql_get_entries, true, 0);
@@ -177,18 +209,14 @@ cache_all_calendars(PG_FUNCTION_ARGS) {
         uint64 calendar_index = calendar_id - 1;
 
         if (prev_calendar_id != calendar_id) {
-            // calcache_calendars[calendar_index].calendar_id = calendar_id;
             prev_calendar_id = calendar_id;
             entry_count = 0;
         }
-        // elog(INFO, "adding date");
         calcache_calendars[calendar_index].dates[entry_count++] = calendar_entry;
-        // elog(INFO, "done.");
         if (calcache_calendars[calendar_index].dates_size == entry_count) {
             // entry copy complete, calculate page size
             calcache_calculate_page_size(&calcache_calendars[calendar_index]);
         }
-        // elog(INFO, "next row");
     }
     SPI_finish();
     calcache_filled = true;

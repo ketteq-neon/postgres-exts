@@ -7,20 +7,20 @@
 
 #include "postgres.h"
 #include "utils/memutils.h"
+#include <glib.h>
 
 // TODO: Map the calendar name (str) to the calendar_idx
 // calendar_name from users can be uppercase, lowercase or mixed -> lookup and get the calendar_idx
 
 typedef struct Calendar {
     uint32 calendar_id;
-    // char * calendar_name;
+
     int32 * dates;
     uint32 dates_size;
 
     uint32 page_size;
     int32 first_page_offset;
 
-    // TODO
     int32 * page_map;
     int32 page_map_size;
 } Calendar;
@@ -46,9 +46,12 @@ typedef struct Calendar {
 extern struct Calendar * calcache_calendars;
 extern uint64 calcache_calendar_count;
 extern bool calcache_filled;
+extern GHashTable * calcache_calendar_names;
 
 void calcache_init_calendars(uint64 min_calendar_id, uint64 max_calendar_id);
 void calcache_init_calendar_entries(Calendar * calendar, uint64 calendar_entry_count);
+void calcache_report_calendar_names();
+void calcache_init_add_calendar_name(Calendar calendar, char *calendar_name);
 void calcache_calculate_page_size(Calendar * calendar);
 int32 calcache_add_calendar_days(int32 input_date, int32 interval, Calendar calendar);
 

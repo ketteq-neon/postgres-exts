@@ -2,12 +2,19 @@
 // Created by gchiappe on 2022-02-01.
 //
 
+// #include <glib/gtypes.h>
+
 #include "cache.h"
 #include "inttypes.h"
 
-struct Calendar * calcache_calendars; // Calendar Store.
+struct Calendar *calcache_calendars; // Calendar Store.
 uint64 calcache_calendar_count; // Calendar Store Size.
 bool calcache_filled; // True if cache is filled.
+GHashTable *calcache_calendar_names;
+
+void glib_value_free(gpointer data) {
+    free(data);
+}
 
 void calcache_init_calendars(uint64 min_calendar_id, uint64 max_calendar_id) {
     MemoryContext prev_memory_context;
@@ -24,14 +31,20 @@ void calcache_init_calendars(uint64 min_calendar_id, uint64 max_calendar_id) {
     elog(INFO, "Calendar memory allocated. Now, entries must be allocated.");
     calcache_calendar_count = calendar_count;
     //
+    calcache_calendar_names = g_hash_table_new_full
+            (g_str_hash,
+             g_str_equal,
+             glib_value_free,
+             glib_value_free);
+    //
     MemoryContextSwitchTo(prev_memory_context);
 }
 
-void calcache_init_calendar_entries(Calendar * calendar, uint64 calendar_entry_count) {
+void calcache_init_calendar_entries(Calendar *calendar, uint64 calendar_entry_count) {
     // uint64 calendar_index = calendar_id - 1;
     MemoryContext prev_memory_context;
     prev_memory_context = MemoryContextSwitchTo(TopMemoryContext);
-    calendar->dates = malloc(calendar_entry_count * sizeof (int32));
+    calendar->dates = malloc(calendar_entry_count * sizeof(int32));
     if (calendar->dates == NULL) {
         elog(ERROR, "Cannot allocate memory for date entries.");
     }
@@ -40,7 +53,25 @@ void calcache_init_calendar_entries(Calendar * calendar, uint64 calendar_entry_c
     elog(INFO, "%" PRIu64 " entries memory allocated for Calendar-Id: %d", calendar_entry_count, calendar->calendar_id);
 }
 
-void calcache_calculate_page_size(Calendar * calendar) {
+static void displayhash(gpointer key, gpointer value, gpointer user_data) {
+    // elog(INFO, "user_data:%s\n",user_data);
+    elog(INFO, "key:%s value:%s\n", (char*)key, (char*)value);
+}
+
+void calcache_report_calendar_names() {
+    g_hash_table_foreach(calcache_calendar_names, displayhash, NULL);
+}
+
+void calcache_init_add_calendar_name(Calendar calendar, char *calendar_name) {
+    // Convert Int to Str
+    int num_len = snprintf(NULL, 0, "%d", calendar.calendar_id);
+    char * id_str = malloc((num_len + 1) * sizeof(char));
+    snprintf(id_str, num_len+1, "%d", calendar.calendar_id);
+    // TODO: Check how to save value as Int and not Str (char*)
+    g_hash_table_insert(calcache_calendar_names, calendar_name, id_str);
+}
+
+void calcache_calculate_page_size(Calendar *calendar) {
     elog(INFO, "Calculating Page Size for Calendar-Id: %d", calendar->calendar_id);
     int32 last_date = calendar->dates[calendar->dates_size - 1];
     int32 first_date = calendar->dates[0];
@@ -59,7 +90,7 @@ void calcache_calculate_page_size(Calendar * calendar) {
     calendar->page_map_size = page_end_index - calendar->first_page_offset + 1;
     //
     MemoryContext prev_ctx = MemoryContextSwitchTo(TopMemoryContext);
-    calendar->page_map = calloc( calendar->page_map_size , sizeof(int32));
+    calendar->page_map = calloc(calendar->page_map_size, sizeof(int32));
     MemoryContextSwitchTo(prev_ctx);
     //
     // Calculate Page Map
@@ -83,7 +114,7 @@ int32 calcache_add_calendar_days(int32 input_date, int32 interval, Calendar cale
     int32 first_date_index = calmath_get_first_entry_index(
             input_date,
             calendar
-            );
+    );
     elog(INFO, "Cal-Id: %d, First Date Index: %d, Interval: %d, Input-Date: %d",
          calendar.calendar_id, first_date_index, interval, input_date);
     // Now try to get the corresponding date of requested interval
@@ -127,10 +158,10 @@ int calcache_report() {
                    "Entries: %d, "
                    "Page Map Size: %d, "
                    "Page Size: %d",
-                   curr_calendar.calendar_id,
-                   curr_calendar.dates_size,
-                   curr_calendar.page_map_size,
-                   curr_calendar.page_size);
+             curr_calendar.calendar_id,
+             curr_calendar.dates_size,
+             curr_calendar.page_map_size,
+             curr_calendar.page_size);
         for (uint32 j = 0; j < curr_calendar.dates_size; j++) {
             elog(INFO, "Entry[%d]: %d", j, curr_calendar.dates[j]);
         }
