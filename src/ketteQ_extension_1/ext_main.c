@@ -3,21 +3,20 @@
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 #include "executor/spi.h"
-#include "lib/stringinfo.h"
 
 #include <fmgr.h>
 #include <inttypes.h>
 #include <stdio.h>
 
 #include "calendar/cache.h"
-#include "calendar/cache_util.h"
-#include "calendar/math.h"
 
 PG_MODULE_MAGIC;
 
-PG_FUNCTION_INFO_V1(cc_reset_cache);
-Datum cc_reset_cache(PG_FUNCTION_ARGS) {
+PG_FUNCTION_INFO_V1(kq_invalidate_cache);
+Datum kq_invalidate_cache(PG_FUNCTION_ARGS) {
+    MemoryContext old_context = MemoryContextSwitchTo(TopMemoryContext);
     int ret = calcache_invalidate();
+    MemoryContextSwitchTo(old_context);
     if (ret == 0) {
         PG_RETURN_TEXT_P(cstring_to_text("Cache Cleared."));
     } else {
@@ -25,8 +24,8 @@ Datum cc_reset_cache(PG_FUNCTION_ARGS) {
     }
 }
 
-PG_FUNCTION_INFO_V1(cc_get_cache);
-Datum cc_get_cache(PG_FUNCTION_ARGS) {
+PG_FUNCTION_INFO_V1(kq_report_cache);
+Datum kq_report_cache(PG_FUNCTION_ARGS) {
     int ret = calcache_report();
     if (ret == 0) {
         PG_RETURN_TEXT_P(cstring_to_text("OK."));
@@ -64,14 +63,15 @@ kq_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS) {
     PG_RETURN_DATEADT(new_date);
 }
 
-PG_FUNCTION_INFO_V1(cache_all_calendars);
+PG_FUNCTION_INFO_V1(kq_load_all_calendars);
 Datum
-cache_all_calendars(PG_FUNCTION_ARGS) {
+kq_load_all_calendars(PG_FUNCTION_ARGS) {
     if (calcache_filled) {
-        PG_RETURN_DATUM(cc_get_cache(NULL));
+        PG_RETURN_DATUM(kq_report_cache(NULL));
     }
     // Vars
     int query_exec_ret;
+    MemoryContext prev_ctx;
     // Row Control
     uint64 curr_row_call;
     uint64 proc;
@@ -129,7 +129,9 @@ cache_all_calendars(PG_FUNCTION_ARGS) {
     //
     elog(INFO, "Calendar-Id: Min: %" PRId64 ", Max: %" PRId64, min_value, max_value);
     // Init the Struct's Cache
+    prev_ctx = MemoryContextSwitchTo(TopMemoryContext);
     calcache_init_calendars(min_value, max_value);
+    MemoryContextSwitchTo(prev_ctx);
     // Init the Structs's date property with the count of the entries
     query_exec_ret = SPI_execute(sql_get_entries_count_per_calendar_id, true, 0);
     query_exec_rowcount = SPI_processed;
@@ -168,10 +170,12 @@ cache_all_calendars(PG_FUNCTION_ARGS) {
 
         calcache_calendars[calendar_id-1].calendar_id = calendar_id;
 
+        MemoryContext prev_memory_context = MemoryContextSwitchTo(TopMemoryContext);
         calcache_init_calendar_entries(
                 &calcache_calendars[calendar_id-1],
                 calendar_entry_count
                 );
+        MemoryContextSwitchTo(prev_memory_context);
         // Add The Calendar Name
         calcache_init_add_calendar_name(calcache_calendars[calendar_id-1], calendar_name);
     }
@@ -215,7 +219,9 @@ cache_all_calendars(PG_FUNCTION_ARGS) {
         calcache_calendars[calendar_index].dates[entry_count++] = calendar_entry;
         if (calcache_calendars[calendar_index].dates_size == entry_count) {
             // entry copy complete, calculate page size
+            prev_ctx = MemoryContextSwitchTo(TopMemoryContext);
             calcache_calculate_page_size(&calcache_calendars[calendar_index]);
+            MemoryContextSwitchTo(prev_ctx);
         }
     }
     SPI_finish();

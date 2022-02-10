@@ -17,10 +17,7 @@ void glib_value_free(gpointer data) {
 }
 
 void calcache_init_calendars(unsigned long min_calendar_id, unsigned long max_calendar_id) {
-    MemoryContext prev_memory_context;
-    prev_memory_context = MemoryContextSwitchTo(TopMemoryContext);
     //
-    //uint64 calendar_count = max_calendar_id - min_calendar_id;
     uint64 calendar_count = max_calendar_id;
     //
     elog(INFO, "Will allocate memory for %" PRIu64 " calendars.", calendar_count);
@@ -37,25 +34,19 @@ void calcache_init_calendars(unsigned long min_calendar_id, unsigned long max_ca
              glib_value_free,
              glib_value_free);
     //
-    MemoryContextSwitchTo(prev_memory_context);
 }
 
-void calcache_init_calendar_entries(Calendar *calendar, uint64 calendar_entry_count) {
-    // uint64 calendar_index = calendar_id - 1;
-    MemoryContext prev_memory_context;
-    prev_memory_context = MemoryContextSwitchTo(TopMemoryContext);
+void calcache_init_calendar_entries(Calendar *calendar, unsigned long calendar_entry_count) {
     calendar->dates = malloc(calendar_entry_count * sizeof(int32));
     if (calendar->dates == NULL) {
         elog(ERROR, "Cannot allocate memory for date entries.");
     }
     calendar->dates_size = calendar_entry_count;
-    MemoryContextSwitchTo(prev_memory_context);
     elog(INFO, "%" PRIu64 " entries memory allocated for Calendar-Id: %d", calendar_entry_count, calendar->calendar_id);
 }
 
 static void displayhash(gpointer key, gpointer value, gpointer user_data) {
-    // elog(INFO, "user_data:%s\n",user_data);
-    elog(INFO, "key:%s value:%s\n", (char*)key, (char*)value);
+    elog(INFO, "Key: %s, Value: %s", (char*) key, (char*) value);
 }
 
 void calcache_report_calendar_names() {
@@ -89,9 +80,7 @@ void calcache_calculate_page_size(Calendar *calendar) {
     int32 page_end_index = calendar->dates[calendar->dates_size - 1] / calendar->page_size;
     calendar->page_map_size = page_end_index - calendar->first_page_offset + 1;
     //
-    MemoryContext prev_ctx = MemoryContextSwitchTo(TopMemoryContext);
     calendar->page_map = calloc(calendar->page_map_size, sizeof(int32));
-    MemoryContextSwitchTo(prev_ctx);
     //
     // Calculate Page Map
     int32 prev_page_index = 0;
@@ -181,11 +170,11 @@ int calcache_invalidate() {
         elog(INFO, "In-Mem: Cache Does Not Exists.");
         return -1;
     }
-    MemoryContext old_context;
+    //MemoryContext old_context;
     // Testing MemoryContexts
-    old_context = MemoryContextSwitchTo(TopMemoryContext);
+
     free(calcache_calendars);
-    MemoryContextSwitchTo(old_context);
+    //MemoryContextSwitchTo(old_context);
     // End Free
     calcache_calendar_count = 0;
     calcache_filled = false;
