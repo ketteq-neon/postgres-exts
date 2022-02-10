@@ -18,6 +18,7 @@ void calcache_init_calendars(unsigned long min_calendar_id, unsigned long max_ca
 void calcache_init_calendar_entries(Calendar * calendar, unsigned long calendar_entry_count);
 void calcache_report_calendar_names();
 void calcache_init_add_calendar_name(Calendar calendar, char *calendar_name);
+int calcache_get_calendar_by_name(char* calendar_name, Calendar * calendar);
 void calcache_calculate_page_size(Calendar * calendar);
 int calcache_add_calendar_days(int input_date, int interval, Calendar calendar);
 

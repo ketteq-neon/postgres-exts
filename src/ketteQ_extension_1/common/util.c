@@ -3,9 +3,11 @@
 //
 
 #include "util.h"
+
+#include <ctype.h>
 #include "inttypes.h"
 
-ptrdiff_t coutil_uint64_to_ptrdiff(uint64 input) {
+ptrdiff_t coutil_uint64_to_ptrdiff(unsigned long input) {
     if (input > PTRDIFF_MAX) {
         return -1;
     }
@@ -20,7 +22,7 @@ ptrdiff_t coutil_uint64_to_ptrdiff(uint64 input) {
  * @param value
  * @return
  */
-int32 coutil_binary_search(int32 arr[], int32 left, int32 right, int32 value) {
+int coutil_binary_search(int arr[], int left, int right, int value) {
     if (right >= left) {
         int mid = left + (right - left) / 2;
         // If the element is present at the middle
@@ -38,4 +40,8 @@ int32 coutil_binary_search(int32 arr[], int32 left, int32 right, int32 value) {
     // We reach here when element is not
     // present in array
     return -1;
+}
+
+void coutil_str_to_lowercase(char * data) {
+    for (; *data; ++data) * data = tolower(*data);
 }

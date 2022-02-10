@@ -5,8 +5,10 @@
 #ifndef KETTEQ_POSTGRESQL_EXTENSIONS_UTIL_H
 #define KETTEQ_POSTGRESQL_EXTENSIONS_UTIL_H
 
-#include "postgres.h"
-ptrdiff_t coutil_uint64_to_ptrdiff(uint64 input);
-int32 coutil_binary_search(int32 arr[], int32 left, int32 right, int32 value);
+#include <stddef.h>
+
+ptrdiff_t coutil_uint64_to_ptrdiff(unsigned long input);
+int coutil_binary_search(int arr[], int left, int right, int value);
+void coutil_str_to_lowercase(char * data);
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_UTIL_H

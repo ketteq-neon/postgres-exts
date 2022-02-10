@@ -6,6 +6,7 @@
 
 #include "cache.h"
 #include "inttypes.h"
+#include "../common.h"
 
 struct Calendar *calcache_calendars; // Calendar Store.
 unsigned long calcache_calendar_count; // Calendar Store Size.
@@ -58,8 +59,27 @@ void calcache_init_add_calendar_name(Calendar calendar, char *calendar_name) {
     int num_len = snprintf(NULL, 0, "%d", calendar.calendar_id);
     char * id_str = malloc((num_len + 1) * sizeof(char));
     snprintf(id_str, num_len+1, "%d", calendar.calendar_id);
+    //
     // TODO: Check how to save value as Int and not Str (char*)
-    g_hash_table_insert(calcache_calendar_names, calendar_name, id_str);
+    coutil_str_to_lowercase(calendar_name);
+    char * calendar_name_ll = strdup(calendar_name);
+    g_hash_table_insert(calcache_calendar_names, calendar_name_ll, id_str);
+}
+
+int calcache_get_calendar_by_name(char* calendar_name, Calendar * calendar) {
+    coutil_str_to_lowercase(calendar_name);
+    _Bool found = g_hash_table_contains(calcache_calendar_names, calendar_name);
+    if (found) {
+        char * calendar_id_str = g_hash_table_lookup(calcache_calendar_names, calendar_name);
+        long calendar_id_l = strtol(calendar_id_str, NULL, 10);
+        if (calendar_id_l > INT32_MAX) {
+            // out of bounds.
+            return -1;
+        }
+        * calendar = calcache_calendars[calendar_id_l - 1];
+        return 0;
+    }
+    return -1;
 }
 
 void calcache_calculate_page_size(Calendar *calendar) {

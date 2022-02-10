@@ -54,11 +54,20 @@ kq_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS) {
     int32 date = PG_GETARG_INT32(0);
     int32 calendar_interval = PG_GETARG_INT32(1);
     text * calendar_name = PG_GETARG_TEXT_P(2);
-    //
-    // Demo
-    calcache_report_calendar_names();
-    //
-    DateADT new_date = 1234;
+    // Convert to CSTRING
+    char * calendar_name_str = text_to_cstring(calendar_name);
+    // Lookup for the Calendar
+    Calendar cal;
+    int ret = calcache_get_calendar_by_name(calendar_name_str, &cal);
+    if (ret < 0) {
+        elog(ERROR, "Calendar does not exists.");
+    }
+    // Do the Math.
+    DateADT new_date = calcache_add_calendar_days(
+            date,
+            calendar_interval,
+            cal
+            );
     //
     PG_RETURN_DATEADT(new_date);
 }
