@@ -1,18 +1,32 @@
-cmake_minimum_required(VERSION 3.6)
+# (C) 2022 ketteQ
+#
+# Author: Giancarlo Chiappe
+#
+#
+cmake_minimum_required(VERSION 3.16)
 project(ketteQ_PostgreSQL_Extensions)
 
+# Add PGXS CMake Module (in ./cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
+# Set compiler flags
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Find PG Headers
 find_package(PostgreSQL REQUIRED)
 
 # GLIB 2.0
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(deps REQUIRED IMPORTED_TARGET glib-2.0)
 
-set(CMAKE_CXX_STANDARD 14)
-
+# Add PGXS Plugin Includes
 include_directories(${PostgreSQL_INCLUDE_DIRS}
                     ${PostgreSQL_SERVER_INCLUDE_DIRS})
 
+# Enable Testing (CTest)
 enable_testing()
+# Add GoogleTest Suite
+add_subdirectory(googletest)
+# Add Sources
 add_subdirectory(src)
