@@ -176,17 +176,22 @@ int calcache_add_calendar_days(int input_date, int interval, Calendar calendar) 
  * @return -1 if error, 0 if ok.
  */
 int calcache_invalidate() {
+    int cc;
+    //
     if (calcache_calendar_count == 0) {
-        // elog(INFO, "In-Mem: Cache Does Not Exists.");
         return -1;
     }
-    //MemoryContext old_context;
-    // Testing MemoryContexts
+    // Free Entries 1st
+    for (cc = 0; cc < calcache_calendar_count; cc++) {
+        free(calcache_calendars[cc].dates);
+    }
+    // Then Free Store
     free(calcache_calendars);
-    //MemoryContextSwitchTo(old_context);
-    // End Free
+    // Then Destroy Hashmap
+    g_hash_table_destroy(calcache_calendar_names);
+    // Reset Control Vars
     calcache_calendar_count = 0;
     calcache_filled = false;
-    // elog(INFO, "In-Mem: Cache Cleared.");
+    // Done
     return 0;
 }

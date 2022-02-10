@@ -60,9 +60,16 @@ TEST(kQCalendarMathTest, CalendarEntriesInsert) {
     //
     for (cc = 0; cc < calcache_calendar_count; cc++) {
         cal = &calcache_calendars[cc];
-
-        for (jj = 0; cal->dates_size; jj++) {
-
+        // printf("Will fill %d entries.\n", cal->dates_size);
+        for (jj = 0; jj < cal->dates_size; jj++) {
+            // printf("%d,", jj);
         }
+        EXPECT_EQ(jj, cal->dates_size);
     }
+    EXPECT_EQ(cc, calcache_calendar_count);
+}
+
+TEST(kQCalendarMathTest, CalendarInvalidate) {
+    int ret = calcache_invalidate();
+    EXPECT_EQ(ret, 0);
 }
