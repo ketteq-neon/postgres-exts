@@ -8,15 +8,15 @@
 #include "inttypes.h"
 
 struct Calendar *calcache_calendars; // Calendar Store.
-uint64 calcache_calendar_count; // Calendar Store Size.
-bool calcache_filled; // True if cache is filled.
+unsigned long calcache_calendar_count; // Calendar Store Size.
+_Bool calcache_filled; // True if cache is filled.
 GHashTable *calcache_calendar_names;
 
 void glib_value_free(gpointer data) {
     free(data);
 }
 
-void calcache_init_calendars(uint64 min_calendar_id, uint64 max_calendar_id) {
+void calcache_init_calendars(unsigned long min_calendar_id, unsigned long max_calendar_id) {
     MemoryContext prev_memory_context;
     prev_memory_context = MemoryContextSwitchTo(TopMemoryContext);
     //
