@@ -18,6 +18,7 @@ typedef struct Calendar {
     int page_map_size;
 } Calendar;
 
-#include "ketteQ_extension_1/src/calendar/math.h"
+#include "calendar/cache.h"
+#include "calendar/math.h"
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_CALENDAR_H

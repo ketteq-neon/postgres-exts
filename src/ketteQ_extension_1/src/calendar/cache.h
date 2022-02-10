@@ -1,12 +1,7 @@
 #ifndef KETTEQ_POSTGRESQL_EXTENSIONS_CACHE_H
 #define KETTEQ_POSTGRESQL_EXTENSIONS_CACHE_H
 
-//#include "postgres.h"
-//#include "utils/memutils.h"
-//#include <glib.h>
-//#include "math.h"
-
-#include "ketteQ_extension_1/src/calendar.h"
+#include "../calendar.h"
 #include <glib.h>
 
 extern struct Calendar * calcache_calendars;
