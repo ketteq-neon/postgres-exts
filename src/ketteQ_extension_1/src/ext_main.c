@@ -1,14 +1,20 @@
+/**
+ * (C) 2022 ketteQ
+ * Giancarlo Chiappe
+ */
+
 #include <postgres.h>
+#include <fmgr.h>
+#include <inttypes.h>
+#include <stdio.h>
+//
 #include "utils/date.h"
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 #include "executor/spi.h"
-
-#include <fmgr.h>
-#include <inttypes.h>
-#include <stdio.h>
-
-#include "ketteQ_extension_1/src/calendar/cache.h"
+//
+#include "calendar.h"
+//
 
 PG_MODULE_MAGIC;
 
