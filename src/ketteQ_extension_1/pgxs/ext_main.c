@@ -13,14 +13,13 @@
 #include "utils/memutils.h"
 #include "executor/spi.h"
 //
-#include "calendar.h"
+#include "../src/calendar.h"
 //
 
 PG_MODULE_MAGIC;
 
 int pg_calcache_report() {
     if (!calcache_filled) {
-        // elog(ERROR, "Cannot Report Cache Because is Empty.");
         return -1;
     }
     elog(INFO, "Calendar Count: %" PRIu64, calcache_calendar_count);
@@ -77,12 +76,14 @@ kq_add_calendar_days(PG_FUNCTION_ARGS) {
     DateADT new_date = calcache_add_calendar_days(date,
                                                   calendar_interval,
                                                   calcache_calendars[calendar_id - 1]);
+    //
     PG_RETURN_DATEADT(new_date);
 }
 
 PG_FUNCTION_INFO_V1(kq_add_calendar_days_by_calendar_name);
 Datum
 kq_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS) {
+    //
     int32 date = PG_GETARG_INT32(0);
     int32 calendar_interval = PG_GETARG_INT32(1);
     text * calendar_name = PG_GETARG_TEXT_P(2);
@@ -124,15 +125,11 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
     // Query #1, Get MIN_ID and MAX_ID of Calendars
     char *sql_get_min_max = "select min(ce.calendar_id), max(ce.calendar_id) from calendar_entries ce;";
     // Query #2, Get Calendar's Entries Count and Names
-//    char *sql_get_entries_count_per_calendar_id = "select ce.calendar_id, count(*) from calendar_entries ce group by "
-//                                                  "ce.calendar_id order by ce.calendar_id asc ;";
     char *sql_get_entries_count_per_calendar_id = "select ce.calendar_id, count(*), (select c.\"name\" "
                                                   "from calendar c where c.id = ce.calendar_id) \"name\" from "
                                                   "calendar_entries ce group by ce.calendar_id order by ce.calendar_id "
                                                   "asc ;";
-    // Query #3, Get calendar names --> Can be done with the Q2. TODO: Optimize.
-    // char* sql_get_calendar_names = "select c.id, c.\"name\" from calendar c order by c.id asc;";
-    // Query #4, Get Entries of Calendars
+    // Query #3, Get Entries of Calendars
     char *sql_get_entries = "select ce.calendar_id , ce.\"date\" from calendar_entries ce order by ce.calendar_id asc,"
                             " ce.\"date\" asc ;";
     // SPI
@@ -267,5 +264,5 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
     }
     SPI_finish();
     calcache_filled = true;
-    PG_RETURN_TEXT_P("Executed OK.");
+    PG_RETURN_TEXT_P(strdup("Executed OK."));
 }

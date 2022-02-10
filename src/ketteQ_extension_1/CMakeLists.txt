@@ -2,19 +2,36 @@
 #
 # Author: Giancarlo Chiappe
 
+# PGXS Extension Info
 set(This ketteq_extension)
 set(Version 0.1)
 set(Description "ketteQ PostgreSQL Extension (TBD)")
+
+# Common Sources
+set(CommonSrc src/common/util.c src/calendar/cache.c src/calendar/math.c)
 
 # Define the meta for the PGXS plugin. TODO: Add Regression Tests
 add_postgresql_extension(
         ${This}
         VERSION ${Version}
         COMMENT ${Description}
-        SOURCES src/common/util.c src/calendar/cache.c src/calendar/math.c src/ext_main.c
-        SCRIPTS src/ketteq_extension--0.1.sql)
-
+        SOURCES ${CommonSrc} pgxs/ext_main.c
+        SCRIPTS pgxs/ketteq_extension--0.1.sql)
 # Link to Other C Libraries (GLib2.0)
 target_link_libraries(${This} PkgConfig::deps)
 
+# Test Target Configuration
+set(ThisTest ketteq_ext_test1)
+# Build the Test Executable
+add_executable(${ThisTest} ${CommonSrc} test/test1.c)
+target_link_libraries(
+        ${ThisTest}
+        PUBLIC
+        gtest_main
+        PkgConfig::deps
+)
 # Add Tests
+add_test(
+        NAME ${ThisTest}
+        COMMAND ${ThisTest}
+)
