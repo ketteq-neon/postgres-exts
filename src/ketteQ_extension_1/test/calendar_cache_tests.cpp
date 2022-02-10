@@ -4,6 +4,7 @@ extern "C" {
     #include "../src/calendar.h"
 }
 
+// Init the Calendars
 TEST(kQCalendarMathTest, CalendarCacheInit) {
     int calendar_entry_count = 100;
     // Init the In-Mem Store
@@ -14,6 +15,7 @@ TEST(kQCalendarMathTest, CalendarCacheInit) {
     EXPECT_EQ(calcache_calendar_count, calendar_entry_count);
 }
 
+// Init the Entries
 TEST(kQCalendarMathTest, CalendarCacheEntriesInit) {
     int per_calendar_entry_count = 10;
     //
@@ -47,11 +49,14 @@ TEST(kQCalendarMathTest, CalendarCacheEntriesInit) {
         // Now check if the calendar is the same (until now)
         EXPECT_EQ(cal->calendar_id, g_cal.calendar_id);
         EXPECT_EQ(cal->dates_size, g_cal.dates_size);
+        //
+        free(cal_name);
     }
     printf("\n");
     EXPECT_EQ(cc, calcache_calendar_count);
 }
 
+// This will fill the in-mem cache
 TEST(kQCalendarMathTest, CalendarEntriesInsert) {
     int ret, cc, jj;
     Calendar * cal;
@@ -63,12 +68,14 @@ TEST(kQCalendarMathTest, CalendarEntriesInsert) {
         // printf("Will fill %d entries.\n", cal->dates_size);
         for (jj = 0; jj < cal->dates_size; jj++) {
             // printf("%d,", jj);
+            // TODO
         }
         EXPECT_EQ(jj, cal->dates_size);
     }
     EXPECT_EQ(cc, calcache_calendar_count);
 }
 
+// This will Invalidate, Must return 0 if everything went OK.
 TEST(kQCalendarMathTest, CalendarInvalidate) {
     int ret = calcache_invalidate();
     EXPECT_EQ(ret, 0);
