@@ -12,6 +12,32 @@
 
 PG_MODULE_MAGIC;
 
+int pg_calcache_report() {
+    if (!calcache_filled) {
+        // elog(ERROR, "Cannot Report Cache Because is Empty.");
+        return -1;
+    }
+    elog(INFO, "Calendar Count: %" PRIu64, calcache_calendar_count);
+    for (uint64 i = 0; i < calcache_calendar_count; i++) {
+        Calendar curr_calendar = calcache_calendars[i];
+        elog(INFO, "Calendar-Id: %d, "
+                   "Entries: %d, "
+                   "Page Map Size: %d, "
+                   "Page Size: %d",
+             curr_calendar.calendar_id,
+             curr_calendar.dates_size,
+             curr_calendar.page_map_size,
+             curr_calendar.page_size);
+        for (uint32 j = 0; j < curr_calendar.dates_size; j++) {
+            elog(INFO, "Entry[%d]: %d", j, curr_calendar.dates[j]);
+        }
+        for (uint32 j = 0; j < curr_calendar.page_map_size; j++) {
+            elog(INFO, "PageMap Entry[%d]: %d", j, curr_calendar.page_map[j]);
+        }
+    }
+    return 0;
+}
+
 PG_FUNCTION_INFO_V1(kq_invalidate_cache);
 Datum kq_invalidate_cache(PG_FUNCTION_ARGS) {
     MemoryContext old_context = MemoryContextSwitchTo(TopMemoryContext);
@@ -26,7 +52,7 @@ Datum kq_invalidate_cache(PG_FUNCTION_ARGS) {
 
 PG_FUNCTION_INFO_V1(kq_report_cache);
 Datum kq_report_cache(PG_FUNCTION_ARGS) {
-    int ret = calcache_report();
+    int ret = pg_calcache_report();
     if (ret == 0) {
         PG_RETURN_TEXT_P(cstring_to_text("OK."));
     } else {

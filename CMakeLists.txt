@@ -13,6 +13,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Disable installation of GTest
+set(INSTALL_GTEST OFF)
+
 # Find PG Headers
 find_package(PostgreSQL REQUIRED)
 
