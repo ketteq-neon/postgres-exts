@@ -3,10 +3,11 @@
 
 #include "../calendar.h"
 #include <glib.h>
+#include <stdbool.h>
 
 extern struct Calendar * calcache_calendars;
 extern unsigned long calcache_calendar_count;
-extern _Bool calcache_filled;
+extern bool calcache_filled;
 extern GHashTable * calcache_calendar_names;
 
 int calcache_init_calendars(unsigned long min_calendar_id, unsigned long max_calendar_id);

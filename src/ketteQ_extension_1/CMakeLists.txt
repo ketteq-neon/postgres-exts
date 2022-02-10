@@ -21,9 +21,10 @@ add_postgresql_extension(
 target_link_libraries(${This} PkgConfig::deps)
 
 # Test Target Configuration
-set(ThisTest ketteq_ext_test1)
+set(ThisTest ketteq_extension_test)
+set(TestSrc test/test1.cpp)
 # Build the Test Executable
-add_executable(${ThisTest} ${CommonSrc} test/test1.c)
+add_executable(${ThisTest} ${CommonSrc} ${TestSrc})
 target_link_libraries(
         ${ThisTest}
         PUBLIC
