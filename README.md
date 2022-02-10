@@ -7,3 +7,5 @@
 ```
 
 - Then just do normal Cmake build.
+
+(C) 2022 ketteQ / Giancarlo Chiappe
