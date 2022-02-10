@@ -22,7 +22,7 @@ target_link_libraries(${This} PkgConfig::deps)
 
 # Test Target Configuration
 set(ThisTest ketteq_extension_test)
-set(TestSrc test/test1.cpp)
+set(TestSrc test/calendar_cache_tests.cpp)
 # Build the Test Executable
 add_executable(${ThisTest} ${CommonSrc} ${TestSrc})
 target_link_libraries(
