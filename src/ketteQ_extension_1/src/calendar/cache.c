@@ -1,8 +1,6 @@
-//
-// Created by gchiappe on 2022-02-01.
-//
-
-// #include <glib/gtypes.h>
+/**
+ * (C) ketteQ, Inc.
+ */
 
 #include "cache.h"
 #include "../common.h"
@@ -19,7 +17,7 @@ void glib_value_free(gpointer data) {
     free(data);
 }
 
-int calcache_init_calendars(unsigned long min_calendar_id, unsigned long max_calendar_id) {
+int calcache_init_calendars(unsigned long min_calendar_id, long max_calendar_id) {
     //
     unsigned long calendar_count = max_calendar_id;
     //
@@ -41,7 +39,7 @@ int calcache_init_calendars(unsigned long min_calendar_id, unsigned long max_cal
     return 0;
 }
 
-int calcache_init_calendar_entries(Calendar *calendar, unsigned long calendar_entry_count) {
+int calcache_init_calendar_entries(Calendar *calendar, long calendar_entry_count) {
     calendar->dates = malloc(calendar_entry_count * sizeof(int));
     if (calendar->dates == NULL) {
         // elog(ERROR, "Cannot allocate memory for date entries.");
@@ -98,9 +96,10 @@ int calcache_calculate_page_size(Calendar *calendar) {
     // elog(INFO, "Calculating Page Size for Calendar-Id: %d", calendar->calendar_id);
     int last_date = calendar->dates[calendar->dates_size - 1];
     int first_date = calendar->dates[0];
-    unsigned int entry_count = calendar->dates_size;
+    int entry_count = calendar->dates_size;
     //
-    int page_size_tmp = calmath_calculate_page_size(first_date, last_date, entry_count);
+     int page_size_tmp = calmath_calculate_page_size(first_date, last_date, entry_count);
+    //int page_size_tmp = 90;
     //
     if (page_size_tmp == 0) {
         // elog(ERROR, "Cannot calculate page size.");
@@ -128,48 +127,56 @@ int calcache_calculate_page_size(Calendar *calendar) {
         }
     }
     return 0;
-//    elog(INFO, "Page Size: %d, FP Offset: %d, Page Map Size: %d",
-//         calendar->page_size, calendar->first_page_offset, calendar->page_map_size);
-}
-
-int calcache_add_calendar_days(int input_date, int interval, Calendar calendar) {
-    // Find the interval
-    int first_date_index = calmath_get_first_entry_index(
-            input_date,
-            calendar
-    );
-//    elog(INFO, "Cal-Id: %d, First Date Index: %d, Interval: %d, Input-Date: %d",
-//         calendar.calendar_id, first_date_index, interval, input_date);
-    // Now try to get the corresponding date of requested interval
-    int result_date_index = first_date_index + interval;
-    //
-    if (result_date_index >= 0) {
-        if (first_date_index < 0) {
-            // elog(ERROR, "Date is in the past.");
-            return 0;
-        }
-        if (result_date_index >= calendar.dates_size) {
-            // elog(ERROR, "Result-Date is in the future.");
-            return INT32_MAX;
-        }
-    } else {
-        if (result_date_index < 0) {
-            // elog(ERROR, "Result-Date is in the past.");
-            return 0; // TODO: Align on the first past date.
-        }
-        if (first_date_index >= calendar.dates_size) {
-            // elog(ERROR, "Date is in the future.");
-            return INT32_MAX;
-        }
-    }
-    return calendar.dates[result_date_index];
 }
 
 /**
- * Reports the contents of the In-Mem Cache, it will display as Log Messages (INFO).
+ * Adds (or subtracts) intervals of the first entry where the given date is located.
+ * @param input_date
+ * @param interval
+ * @param calendar
+ * @param first_date_idx
+ * @param result_date_idx
  * @return
  */
-
+int calcache_add_calendar_days(
+        int input_date,
+        int interval,
+        Calendar calendar,
+        // Optional, set to NULL if it will not be used.
+        int * first_date_idx,
+        int * result_date_idx
+        ) {
+    // Find the interval
+    int first_date_index = calmath_get_closest_index_from_left(input_date, calendar);
+    // Now try to get the corresponding date of requested interval
+    int result_date_index = first_date_index + interval;
+    //
+    // Now check if inside boundaries.
+    if (result_date_index >= 0) {
+        if (first_date_index < 0) {
+            return calendar.dates[0]; // Returns the first date of the calendar.
+        }
+        if (result_date_index >= calendar.dates_size) {
+            return INT32_MAX; // Returns infinity+.
+        }
+    } else {
+        if (result_date_index < 0) {
+            return calendar.dates[0]; // Returns the first date of the calendar.
+        }
+        if (first_date_index >= calendar.dates_size) {
+            return INT32_MAX; // Returns infinity+.
+        }
+    }
+    // This can be useful for reporting or debugging.
+    if (first_date_idx != NULL) {
+        * first_date_idx = first_date_index;
+    }
+    if (result_date_idx != NULL) {
+        * result_date_idx = result_date_index;
+    }
+    //
+    return calendar.dates[result_date_index];
+}
 
 /**
  * Clears the Cache

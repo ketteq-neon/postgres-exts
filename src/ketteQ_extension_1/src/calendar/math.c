@@ -1,7 +1,8 @@
-//
-// Created by gchiappe on 2022-02-01.
-//
+/**
+ * (C) ketteQ, Inc.
+ */
 
+#include <stdio.h>
 #include "math.h"
 #include "../common.h"
 
@@ -12,20 +13,20 @@
  * @param entry_count Count of intervals in the calendar.
  * @return page size as integer.
  */
-unsigned int calmath_calculate_page_size(int first_date, int last_date, int entry_count) {
-    // TODO: Check page size calculation logic for other kind of calendars.
-    return 90;
-    //
-    unsigned int page_size_tmp = 0;
-    //
+int calmath_calculate_page_size(int first_date, int last_date, int entry_count) {
     double date_range = last_date - first_date;
-    double type_guesser = date_range / (double) (entry_count - 1);
-    if (type_guesser > 364 && type_guesser < 366) page_size_tmp = 384; // yearly
-    if (type_guesser > 29 && type_guesser < 31) page_size_tmp = 32; // monthly
-    // if (type_guesser > 14 && type_guesser < 16) page_size_tmp = 16; // TODO: quarterly, test
-    // if (type_guesser < 14) page_size_tmp = 8; // TODO: weekly, test
+    double avg_entries_per_week_calendar = date_range / 7.0;
+    double avg_entries_per_month_calendar = date_range / 30.33;
+    double entry_count_d = (double) entry_count;
     //
-    // elog(INFO, "Page Size: %d", page_size_tmp);
+    int page_size_tmp = 32; // monthly calendar
+    //
+    if (entry_count_d > avg_entries_per_week_calendar) {
+        page_size_tmp = 16; // weekly calendar
+    }
+    //
+//    printf("CPage-Size: %d, Entries: %.0f, Date-Range: %.0f, AvgWeek: %.4f, AvgMonth: %.4f\n",
+//           page_size_tmp, entry_count_d, date_range, avg_entries_per_week_calendar, avg_entries_per_month_calendar);
     //
     return page_size_tmp;
 }
@@ -36,16 +37,29 @@ unsigned int calmath_calculate_page_size(int first_date, int last_date, int entr
  * @param calendar
  * @return
  */
-int calmath_get_first_entry_index(int date_adt, Calendar calendar) {
-    //
+int calmath_get_closest_index_from_left(int date_adt, Calendar calendar) {
     int page_map_index = (date_adt / calendar.page_size) - calendar.first_page_offset;
     //
     if (page_map_index >= calendar.page_map_size) {
         int ret_val = -1 * ((int) calendar.dates_size) - 1;
+        // TODO: Analyze with -2
         return ret_val;
     } else if (page_map_index < 0) {
         int ret_val = -1;
         return ret_val;
     }
-    return page_map_index;
+    //
+    int inclusive_start_index = calendar.page_map[page_map_index];
+    int exclusive_end_index = page_map_index < calendar.page_map_size - 1 ? calendar.page_map[page_map_index + 1] : calendar.dates_size;
+    // printf("Left: %d, Right: %d\n",
+    //       inclusive_start_index, exclusive_end_index);
+
+    // Without inclusive limits
+    // return coutil_left_binary_search(calendar.dates, 0, calendar.dates_size, date_adt);
+
+    // With the inclusive limits, faster
+    return coutil_left_binary_search(calendar.dates,
+                                     inclusive_start_index,
+                                     exclusive_end_index,
+                                     date_adt);
 }

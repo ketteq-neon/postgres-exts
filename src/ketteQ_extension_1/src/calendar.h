@@ -9,9 +9,9 @@ typedef struct Calendar {
     unsigned int calendar_id;
 
     int * dates;
-    unsigned int dates_size;
+    int dates_size;
 
-    unsigned int page_size;
+    int page_size;
     int first_page_offset;
 
     int * page_map;

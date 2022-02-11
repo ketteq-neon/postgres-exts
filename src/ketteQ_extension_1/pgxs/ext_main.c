@@ -75,7 +75,9 @@ kq_add_calendar_days(PG_FUNCTION_ARGS) {
     //
     DateADT new_date = calcache_add_calendar_days(date,
                                                   calendar_interval,
-                                                  calcache_calendars[calendar_id - 1]);
+                                                  calcache_calendars[calendar_id - 1],
+                                                  NULL,
+                                                  NULL);
     //
     PG_RETURN_DATEADT(new_date);
 }
@@ -95,12 +97,18 @@ kq_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS) {
     if (ret < 0) {
         elog(ERROR, "Calendar does not exists.");
     }
+    int fd_idx, rs_idx;
     // Do the Math.
     DateADT new_date = calcache_add_calendar_days(
             date,
             calendar_interval,
-            cal
+            cal,
+            &fd_idx,
+            &rs_idx
             );
+    //
+    elog(INFO, "FD-Idx: %d = %d, RS-Idx: %d = %d", fd_idx, cal.dates[fd_idx],
+         rs_idx, cal.dates[rs_idx]);
     //
     PG_RETURN_DATEADT(new_date);
 }
@@ -168,7 +176,7 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
     elog(INFO, "Calendar-Id: Min: %" PRId64 ", Max: %" PRId64, min_value, max_value);
     // Init the Struct's Cache
     prev_ctx = MemoryContextSwitchTo(TopMemoryContext);
-    calcache_init_calendars(min_value, max_value);
+    calcache_init_calendars(min_value, (long) max_value);
     MemoryContextSwitchTo(prev_ctx);
     // Init the Structs's date property with the count of the entries
     query_exec_ret = SPI_execute(sql_get_entries_count_per_calendar_id, true, 0);
@@ -211,7 +219,7 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
         MemoryContext prev_memory_context = MemoryContextSwitchTo(TopMemoryContext);
         calcache_init_calendar_entries(
                 &calcache_calendars[calendar_id-1],
-                calendar_entry_count
+                (long) calendar_entry_count
                 );
         MemoryContextSwitchTo(prev_memory_context);
         // Add The Calendar Name
