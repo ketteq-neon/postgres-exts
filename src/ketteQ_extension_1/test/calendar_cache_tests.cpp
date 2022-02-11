@@ -60,7 +60,7 @@ TEST(kQCalendarMathTest, StaticCalendarCacheEntriesInit) {
         cal->dates[9] = 7579;
         cal->dates[10] = 7610;
         // Calculate Page Map
-        ret = calcache_calculate_page_size(cal);
+        ret = calcache_init_page_size(cal);
         EXPECT_EQ(ret, 0);
         //
         printf("Cal-Id: %d, Page-Size: %d\nPage-Map-Size: %d",
@@ -309,7 +309,7 @@ TEST(kQCalendarMathTest, StaticCalendarAddDaysTest) {
 ////        printf("\n");
 ////        EXPECT_EQ(jj, cal->dates_size);
 ////        // Calculate Page Map
-////        ret = calcache_calculate_page_size(cal);
+////        ret = calcache_init_page_size(cal);
 ////        EXPECT_EQ(ret, 0);
 ////    }
 ////    printf("\n");

@@ -13,23 +13,35 @@ unsigned long calcache_calendar_count; // Calendar Store Size.
 bool calcache_filled; // True if cache is filled.
 GHashTable *calcache_calendar_names;
 
+/**
+ * Support function for deallocating hash map pointers (keys and values).
+ * Should not be exported.
+ * @param data
+ */
 void glib_value_free(gpointer data) {
     free(data);
 }
 
-int calcache_init_calendars(unsigned long min_calendar_id, long max_calendar_id) {
+/**
+ * This INIT will allocate the calendar struct in-mem storage.
+ * @param min_calendar_id
+ * @param max_calendar_id
+ * @return
+ */
+int calcache_init_calendars(long min_calendar_id, long max_calendar_id) {
+    if (min_calendar_id < 1) return -1;
+    if (max_calendar_id < 1) return -1;
     //
-    unsigned long calendar_count = max_calendar_id;
+    unsigned long calendar_count = max_calendar_id - min_calendar_id + 1;
     //
-    // elog(INFO, "Will allocate memory for %" PRIu64 " calendars.", calendar_count);
     calcache_calendars = malloc(calendar_count * sizeof(struct Calendar));
     if (calcache_calendars == NULL) {
-        //elog(ERROR, "Cannot allocate memory for calendars.");
+        // This happens when the OS can't give us that much memory.
         return -1;
     }
-    // elog(INFO, "Calendar memory allocated. Now, entries must be allocated.");
-    calcache_calendar_count = calendar_count;
     //
+    calcache_calendar_count = calendar_count;
+    // Allocate the HashMap that will store the calendar names (str). This is a dynamic map.
     calcache_calendar_names = g_hash_table_new_full
             (g_str_hash,
              g_str_equal,
@@ -92,35 +104,37 @@ int calcache_get_calendar_by_name(char* calendar_name, Calendar * calendar) {
     return -1;
 }
 
-int calcache_calculate_page_size(Calendar *calendar) {
-    // elog(INFO, "Calculating Page Size for Calendar-Id: %d", calendar->calendar_id);
+/**
+ * This INIT will calculate and set the page size for the given calendar pointer.
+ * @param calendar
+ * @return
+ */
+int calcache_init_page_size(Calendar *calendar) {
     int last_date = calendar->dates[calendar->dates_size - 1];
     int first_date = calendar->dates[0];
     int entry_count = calendar->dates_size;
     //
-     int page_size_tmp = calmath_calculate_page_size(first_date, last_date, entry_count);
-    //int page_size_tmp = 90;
+    int page_size_tmp = calmath_calculate_page_size(first_date, last_date, entry_count);
     //
     if (page_size_tmp == 0) {
-        // elog(ERROR, "Cannot calculate page size.");
+        // Page size cannot be 0, cannot be calculated.
         return -1;
     }
     //
     calendar->page_size = page_size_tmp;
     calendar->first_page_offset = first_date / page_size_tmp;
-    // Allocate Page Map
+    // Allocation of the page map
     int page_end_index = calendar->dates[calendar->dates_size - 1] / calendar->page_size;
     calendar->page_map_size = page_end_index - calendar->first_page_offset + 1;
-    //
+    // Assign memory and set the values to 0.
     calendar->page_map = calloc(calendar->page_map_size, sizeof(int));
     //
     // Calculate Page Map
     int prev_page_index = 0;
-    int prev_date = -1;
-    // TODO: Check Functioning
+    // int prev_date = -1; // This will be required if we check that the array is ordered.
     for (int date_index = 0; date_index < calendar->dates_size; date_index++) {
         int curr_date = calendar->dates[date_index];
-        // Checkings ommited for now...
+        // TODO: Check if the date array is ordered or not, we assume it is.
         int page_index = (curr_date / calendar->page_size) - calendar->first_page_offset;
         while (prev_page_index < page_index) {
             calendar->page_map[++prev_page_index] = date_index;

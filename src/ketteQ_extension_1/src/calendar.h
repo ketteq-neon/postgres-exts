@@ -16,6 +16,7 @@ typedef struct Calendar {
 
     int * page_map;
     int page_map_size;
+    // int initialized; // 0 = not initialized, 1 = initialized
 } Calendar;
 
 #include "calendar/cache.h"

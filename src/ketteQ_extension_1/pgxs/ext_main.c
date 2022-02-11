@@ -266,7 +266,7 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
         if (calcache_calendars[calendar_index].dates_size == entry_count) {
             // entry copy complete, calculate page size
             prev_ctx = MemoryContextSwitchTo(TopMemoryContext);
-            calcache_calculate_page_size(&calcache_calendars[calendar_index]);
+            calcache_init_page_size(&calcache_calendars[calendar_index]);
             MemoryContextSwitchTo(prev_ctx);
         }
     }
