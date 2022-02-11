@@ -133,14 +133,13 @@ endif()
 set(PostgreSQL_FOUND TRUE)
 
 message(STATUS "PostgreSQL version ${PostgreSQL_VERSION_STRING} found")
-message(
-        STATUS
-        "PostgreSQL package library directory: ${PostgreSQL_PACKAGE_LIBRARY_DIR}")
+message(STATUS "PostgreSQL package library directory: ${PostgreSQL_PACKAGE_LIBRARY_DIR}")
 message(STATUS "PostgreSQL libraries: ${PostgreSQL_LIBRARIES}")
 message(STATUS "PostgreSQL extension directory: ${PostgreSQL_EXTENSION_DIR}")
 message(STATUS "PostgreSQL linker options: ${PostgreSQL_LINK_OPTIONS}")
-message(
-        STATUS "PostgreSQL shared linker options: ${PostgreSQL_SHARED_LINK_OPTIONS}")
+message(STATUS "PostgreSQL shared linker options: ${PostgreSQL_SHARED_LINK_OPTIONS}")
+message(STATUS "PostgreSQL server includes: ${PostgreSQL_SERVER_INCLUDE_DIRS}")
+message(STATUS "PostgreSQL server library dirs: ${PostgreSQL_SERVER_LIBRARY_DIRS}")
 
 # add_postgresql_extension(NAME ...)
 #

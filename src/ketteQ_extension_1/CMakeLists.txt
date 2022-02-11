@@ -11,6 +11,7 @@ set(Description "ketteQ PostgreSQL Extension (TBD)")
 set(CommonSrc src/common/util.c src/calendar/cache.c src/calendar/math.c)
 
 # Define the meta for the PGXS plugin. TODO: Add Regression Tests
+# This macro also sets the includes and links to PGXS.
 add_postgresql_extension(
         ${This}
         VERSION ${Version}
@@ -20,16 +21,33 @@ add_postgresql_extension(
 # Link to Other C Libraries (GLib2.0)
 target_link_libraries(${This} PkgConfig::deps)
 
+
+# TODO: Make Test executable linked with postgresql's server library
+
 # Test Target Configuration
 set(ThisTest ketteq_extension_test)
 set(TestSrc test/calendar_cache_tests.cpp)
 # Build the Test Executable
 add_executable(${ThisTest} ${CommonSrc} ${TestSrc})
+set(_link_flags "${PostgreSQL_SHARED_LINK_OPTIONS}")
+foreach(_dir ${PostgreSQL_SERVER_LIBRARY_DIRS})
+    set(_link_flags "${_link_flags} -L${_dir}")
+endforeach()
+
+message(STATUS "${ThisTest} -> _link_flags = ${_link_flags}")
+set_target_properties(
+        ${ThisTest}
+        PROPERTIES PREFIX ""
+        LINK_FLAGS "${_link_flags}"
+        POSITION_INDEPENDENT_CODE ON)
+target_include_directories(
+        ${ThisTest}
+        PRIVATE ${PostgreSQL_SERVER_INCLUDE_DIRS}
+        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+)
 target_link_libraries(
         ${ThisTest}
-        PUBLIC
-        gtest_main
-        PkgConfig::deps
+        ${PostgreSQL_LIBRARIES} gtest_main PkgConfig::deps
 )
 # Add Tests
 add_test(
