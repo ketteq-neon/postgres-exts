@@ -10,8 +10,7 @@
 #include <ctime>
 
 // Dynamic Testing Params
-int dynamic = 0; // 0 = disabled, 1 = enabled
-int calendar_entry_count = 10;
+int calendar_entry_count = 0; // 0 = disabled
 int per_calendar_entry_count_min = 5;
 int per_calendar_entry_count_max = 10;
 int progress_mod = 10;
@@ -22,7 +21,7 @@ int fake_interval_max = 2;
 extern "C" {
     #include "../src/calendar.h"
 }
-// Static Approach, 4 Calendars
+// Static Approach
 TEST(kQCalendarMathTest, StaticCalendarCacheInit) {
     // Init the In-Mem Store
     int ret = calcache_init_calendars(1, 1);
@@ -162,6 +161,7 @@ TEST(kQCalendarMathTest, StaticCalendarAddDaysTest) {
         cal = &calcache_calendars[cc];
         // interval = 0
         int test_dates[] = {
+                // Valid Dates
                 7306,
                 7340,
                 7380,
@@ -171,25 +171,51 @@ TEST(kQCalendarMathTest, StaticCalendarAddDaysTest) {
                 7500,
                 7540,
                 7560,
-                7600
+                7600,
+                // Invalid Dates
+                7610,
+                7300,
+                7561
+        };
+        int test_intervals[] = {
+                // Valid Intervals
+                0,
+                -1,
+                1,
+                2,
+                1,
+                -1,
+                -2,
+                -5,
+                1,
+                0,
+                //
+                1,
+                0,
+                3
         };
         int expected_results[] = {
+                // Valid Results
                 7305,
-                7336,
-                7365,
+                7305,
                 7396,
-                7426,
                 7457,
-                7487,
-                7518,
-                7549,
-                7579
+                7457,
+                7426,
+                7426,
+                7365,
+                7579,
+                7579,
+                //
+                INT32_MAX, // FUTURE
+                7305, // PAST (Gets First Date of Calendar)
+                INT32_MAX // FUTURE
         };
         //
-        for (jj = 0; jj < 10; jj++) {
+        for (jj = 0; jj < 13; jj++) {
             int first_date_index, result_date_index;
             int add_days_result = calcache_add_calendar_days(test_dates[jj],
-                                                             0,
+                                                             test_intervals[jj],
                                                              *cal,
                                                              &first_date_index,
                                                              &result_date_index);
@@ -197,7 +223,7 @@ TEST(kQCalendarMathTest, StaticCalendarAddDaysTest) {
                    "Add-Days-Result: %d, FirstDate-Idx: %d = %d, Result-Idx: %d = %d\n",
                    cal->calendar_id,
                    test_dates[jj],
-                   0,
+                   test_intervals[jj],
                    expected_results[jj],
                    add_days_result,
                    first_date_index, cal->dates[first_date_index],
@@ -208,9 +234,19 @@ TEST(kQCalendarMathTest, StaticCalendarAddDaysTest) {
     }
 }
 //
+TEST(kQCalendarMathTest, StaticCalendarInvalidate) {
+    // Invalidate the static test in order to start the dynamic ones.
+    int ret = calcache_invalidate();
+    EXPECT_EQ(ret, 0);
+}
+//
 int total_entry_count = 0;
 //// Init the Calendars
 TEST(kQCalendarMathTest, CalendarCacheInit) {
+    //
+    if (calendar_entry_count == 0) {
+        GTEST_SKIP();
+    }
     // Init the In-Mem Store
     printf("Initializing cache for %d calendars.\n", calendar_entry_count);
     int ret = calcache_init_calendars(1, calendar_entry_count);
@@ -221,6 +257,10 @@ TEST(kQCalendarMathTest, CalendarCacheInit) {
 //
 //// Init the Entries
 TEST(kQCalendarMathTest, CalendarCacheEntriesInit) {
+    //
+    if (calendar_entry_count == 0) {
+        GTEST_SKIP();
+    }
     //
     printf("Initializing entries between %d and %d for %lu calendars.\n",
            per_calendar_entry_count_min, per_calendar_entry_count_max,
@@ -268,6 +308,11 @@ TEST(kQCalendarMathTest, CalendarCacheEntriesInit) {
 //
 /// This will fill the in-mem cache
 TEST(kQCalendarMathTest, CalendarEntriesInsert) {
+    //
+    if (calendar_entry_count == 0) {
+        GTEST_SKIP();
+    }
+    //
     int         ret,
                 cc,
                 jj,
@@ -310,6 +355,11 @@ TEST(kQCalendarMathTest, CalendarEntriesInsert) {
 //
 //// This will test the add_days_functions
 TEST(kQCalendarMathTest, CalendarAddDaysTest) {
+    //
+    if (calendar_entry_count == 0) {
+        GTEST_SKIP();
+    }
+    //
     int cc,
             jj,
             c_entry_count;
@@ -359,6 +409,11 @@ TEST(kQCalendarMathTest, CalendarAddDaysTest) {
 //
 // This will Invalidate, Must return 0 if everything went OK.
 TEST(kQCalendarMathTest, CalendarInvalidate) {
+    //
+    if (calendar_entry_count == 0) {
+        GTEST_SKIP();
+    }
+    //
     int ret = calcache_invalidate();
     EXPECT_EQ(ret, 0);
 }
