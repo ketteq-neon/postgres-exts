@@ -50,18 +50,18 @@ hosts is not supported.
 
 Required files for installation:
 
-| File                | Description              |
-|---------------------|--------------------------|
-| `kq_imcx--0.1.sql`* | Extension Entrypoint     |
-| `kq_imcx.control`   | Extension Control File   |
-| `kq_imcx.so`        | Extension Shared Library |
+| File                | Description              | Manual Install Path                                   |
+|---------------------|--------------------------|-------------------------------------------------------|
+| `kq_imcx--0.1.sql`* | Extension Entrypoint     | `/usr/share/postgresql/14/extension/kq_imcx--0.1.sql` |
+| `kq_imcx.control`   | Extension Control File   | `/usr/share/postgresql/14/extension/kq_imcx.control`  |
+| `kq_imcx.so`        | Extension Shared Library | `/usr/lib/postgresql/14/lib/kq_imcx.so`               |
 
 * The Extension Entrypoint SQL file should be copied from the source folder.
 
 Install as normal Postgres Extension, with release binaries built, copy
 "PostgreSQL Extension Entrypoint" `kq_imcx--0.1.sql`, 
 "Extension Control File" `kq_imcx.control` and "Extension Shared Library" 
-`kq_imcx.so` to the target PostgresSQL Extension Folder (Usually: .
+`kq_imcx.so` to the target PostgresSQL Extension Folder.
 
 As an alternate method, if you want to install in the same computer that
 has built the extension use the automatic installation option:
