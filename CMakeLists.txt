@@ -4,7 +4,7 @@
 #
 #
 cmake_minimum_required(VERSION 3.16)
-project(ketteQ_PostgreSQL_Extensions)
+project(KetteQ_InMemoryCalendar_Extension)
 
 # Add PGXS CMake Module (in ./cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)

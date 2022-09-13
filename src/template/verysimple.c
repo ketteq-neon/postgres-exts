@@ -1,8 +1,3 @@
-//
-// Created by gchiappe on 2022-01-26.
-//
-
-#include "verysimple.h"
 #include <postgres.h>
 #include <fmgr.h>
 

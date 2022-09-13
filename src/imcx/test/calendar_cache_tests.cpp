@@ -24,21 +24,21 @@ extern "C" {
 // Static Approach
 TEST(kQCalendarMathTest, StaticCalendarCacheInit) {
     // Init the In-Mem Store
-    int ret = calcache_init_calendars(1, 1);
+    int ret = cacheInitCalendars(1, 1);
     EXPECT_EQ(ret, 0);
     // Check the Size of Allocated Calendars
-    EXPECT_EQ(calcache_calendar_count, 1);
+    EXPECT_EQ(cacheCalendarCount, 1);
 }
 //
 TEST(kQCalendarMathTest, StaticCalendarCacheEntriesInit) {
     int cc, ret, jj;
-    Calendar *cal;
+    InMemCalendar *cal;
     //
-    for (cc = 0; cc < calcache_calendar_count; cc++) {
-        cal = &calcache_calendars[cc];
+    for (cc = 0; cc < cacheCalendarCount; cc++) {
+        cal = &cacheCalendars[cc];
         cal->calendar_id = cc + 1;
         //
-        ret = calcache_init_calendar_entries(cal, 11);
+        ret = cacheInitCalendarEntries(cal, 11);
         EXPECT_EQ(ret, 0);
         // Add The Entries
         cal->dates[0] = 7305;
@@ -53,7 +53,7 @@ TEST(kQCalendarMathTest, StaticCalendarCacheEntriesInit) {
         cal->dates[9] = 7579;
         cal->dates[10] = 7610;
         // Calculate Page Map
-        ret = calcache_init_page_size(cal);
+        ret = cacheInitPageSize(cal);
         EXPECT_EQ(ret, 0);
         //
 //        printf("Cal-Id: %d, Page-Size: %d\nPage-Map-Size: %d",
@@ -63,7 +63,7 @@ TEST(kQCalendarMathTest, StaticCalendarCacheEntriesInit) {
 //        for (jj = 0; jj < cal->page_map_size; jj++) {
 //            printf("[%d]=%d,", jj, cal->page_map[jj]);
 //        }
-        // Show Calendar
+        // Show InMemCalendar
 //        printf("\nDates: ");
 //        for (jj = 0; jj < cal->dates_size; jj++) {
 //            printf("[%d]=%d,", jj, cal->dates[jj]);
@@ -155,10 +155,10 @@ TEST(kQCalendarMathTest, IntervalGeneratorTest) {
 //// Static Test
 TEST(kQCalendarMathTest, StaticCalendarAddDaysTest) {
     int cc, jj;
-    Calendar * cal;
+    InMemCalendar * cal;
     //
-    for (cc = 0; cc < calcache_calendar_count; cc++) {
-        cal = &calcache_calendars[cc];
+    for (cc = 0; cc < cacheCalendarCount; cc++) {
+        cal = &cacheCalendars[cc];
         // interval = 0
         int test_dates[] = {
                 // Valid Dates
@@ -208,17 +208,17 @@ TEST(kQCalendarMathTest, StaticCalendarAddDaysTest) {
                 7579,
                 //
                 INT32_MAX, // FUTURE
-                7305, // PAST (Gets First Date of Calendar)
+                7305, // PAST (Gets First Date of InMemCalendar)
                 INT32_MAX // FUTURE
         };
         //
         for (jj = 0; jj < 13; jj++) {
             int first_date_index, result_date_index;
-            int add_days_result = calcache_add_calendar_days(test_dates[jj],
-                                                             test_intervals[jj],
-                                                             *cal,
-                                                             &first_date_index,
-                                                             &result_date_index);
+            int add_days_result = cacheAddCalendarDays(test_dates[jj],
+                                                       test_intervals[jj],
+                                                       *cal,
+                                                       &first_date_index,
+                                                       &result_date_index);
             printf("Cal-Id: %d, Input: %d, Interval: %d, Expected: %d\n"
                    "Add-Days-Result: %d, FirstDate-Idx: %d = %d, Result-Idx: %d = %d\n",
                    cal->calendar_id,
@@ -236,7 +236,7 @@ TEST(kQCalendarMathTest, StaticCalendarAddDaysTest) {
 //
 TEST(kQCalendarMathTest, StaticCalendarInvalidate) {
     // Invalidate the static test in order to start the dynamic ones.
-    int ret = calcache_invalidate();
+    int ret = cacheInvalidate();
     EXPECT_EQ(ret, 0);
 }
 //
@@ -249,10 +249,10 @@ TEST(kQCalendarMathTest, CalendarCacheInit) {
     }
     // Init the In-Mem Store
     printf("Initializing cache for %d calendars.\n", calendar_entry_count);
-    int ret = calcache_init_calendars(1, calendar_entry_count);
+    int ret = cacheInitCalendars(1, calendar_entry_count);
     EXPECT_EQ(ret, 0);
     // Check the Size of Allocated Calendars
-    EXPECT_EQ(calcache_calendar_count, calendar_entry_count);
+    EXPECT_EQ(cacheCalendarCount, calendar_entry_count);
 }
 //
 //// Init the Entries
@@ -264,7 +264,7 @@ TEST(kQCalendarMathTest, CalendarCacheEntriesInit) {
     //
     printf("Initializing entries between %d and %d for %lu calendars.\n",
            per_calendar_entry_count_min, per_calendar_entry_count_max,
-           calcache_calendar_count);
+           cacheCalendarCount);
     // C++11 Random
     std::random_device                  rd;
     std::mt19937                        mt(rd());
@@ -272,27 +272,27 @@ TEST(kQCalendarMathTest, CalendarCacheEntriesInit) {
     //
     int         ret,
                 cc;
-    Calendar *  cal;
+    InMemCalendar *  cal;
     // Init the Calendars
-    for (cc = 0; cc < calcache_calendar_count; cc++) {
+    for (cc = 0; cc < cacheCalendarCount; cc++) {
         // Get Random Entries Number Between the boundaries
         int per_calendar_entry_count = dist(mt);
         // Init The Entries
-        cal = &calcache_calendars[cc];
+        cal = &cacheCalendars[cc];
         cal->calendar_id = cc+1;
         //
-        ret = calcache_init_calendar_entries( cal, per_calendar_entry_count);
+        ret = cacheInitCalendarEntries(cal, per_calendar_entry_count);
         EXPECT_EQ(ret, 0);
         EXPECT_EQ(cal->dates_size, per_calendar_entry_count);
-        // Init the Calendar Name
+        // Init the InMemCalendar Name
         int num_len = snprintf(nullptr, 0, "Calendar Number %d", cc);
         char * cal_name = (char *) malloc((num_len + 1) * sizeof(char));
         snprintf(cal_name, num_len+1, "Calendar Number %d", cc);
         //
-        calcache_init_add_calendar_name(* cal, cal_name);
+        cacheInitAddCalendarName(*cal, cal_name);
         // Check if we can get the calendar by name.
-        Calendar g_cal;
-        ret = calcache_get_calendar_by_name(cal_name, &g_cal);
+        InMemCalendar g_cal;
+        ret = cacheGetCalendarByName(cal_name, &g_cal);
         // If found, ret == 0
         EXPECT_EQ(ret, 0);
         // Now check if the calendar is the same (until now)
@@ -303,7 +303,7 @@ TEST(kQCalendarMathTest, CalendarCacheEntriesInit) {
         total_entry_count += per_calendar_entry_count;
     }
     printf("\n");
-    EXPECT_EQ(cc, calcache_calendar_count);
+    EXPECT_EQ(cc, cacheCalendarCount);
 }
 //
 /// This will fill the in-mem cache
@@ -317,15 +317,15 @@ TEST(kQCalendarMathTest, CalendarEntriesInsert) {
                 cc,
                 jj,
                 c_entry_count;
-    Calendar *  cal;
+    InMemCalendar *  cal;
     //
     c_entry_count = 0;
     //
     printf("Will fill entries for %lu calendars (%d total entries).\n",
-           calcache_calendar_count, total_entry_count);
+           cacheCalendarCount, total_entry_count);
     //
-    for (cc = 0; cc < calcache_calendar_count; cc++) {
-        cal = &calcache_calendars[cc];
+    for (cc = 0; cc < cacheCalendarCount; cc++) {
+        cal = &cacheCalendars[cc];
         // printf("Will fill %d entries.\n", cal->dates_size);
         for (jj = 0; jj < cal->dates_size; jj++) {
             int entry = gen_date_from_interval(7305, jj, nullptr);
@@ -346,11 +346,11 @@ TEST(kQCalendarMathTest, CalendarEntriesInsert) {
         printf("\n");
         EXPECT_EQ(jj, cal->dates_size);
         // Calculate Page Map
-        ret = calcache_init_page_size(cal);
+        ret = cacheInitPageSize(cal);
         EXPECT_EQ(ret, 0);
     }
     printf("\n");
-    EXPECT_EQ(cc, calcache_calendar_count);
+    EXPECT_EQ(cc, cacheCalendarCount);
 }
 //
 //// This will test the add_days_functions
@@ -363,13 +363,13 @@ TEST(kQCalendarMathTest, CalendarAddDaysTest) {
     int cc,
             jj,
             c_entry_count;
-    Calendar *cal;
+    InMemCalendar *cal;
     //
     c_entry_count = 0;
     // Generate fake input dates for each calendar
-    for (cc = 0; cc < calcache_calendar_count; cc++) {
-        cal = &calcache_calendars[cc];
-//        printf("Calendar-Id: %d, Page-Size: %d, First-Entry: %d, Last-Entry: %d, Entries: %d\n",
+    for (cc = 0; cc < cacheCalendarCount; cc++) {
+        cal = &cacheCalendars[cc];
+//        printf("InMemCalendar-Id: %d, Page-Size: %d, First-Entry: %d, Last-Entry: %d, Entries: %d\n",
 //               cal->calendar_id,
 //               cal->page_size,
 //               cal->dates[0],
@@ -382,11 +382,11 @@ TEST(kQCalendarMathTest, CalendarAddDaysTest) {
         EXPECT_LT(fake_input, cal->dates[cal->dates_size - 1]);
         //
         int fd_idx, rs_idx;
-        int add_days_result = calcache_add_calendar_days(fake_input,
-                                                         interval_to_test,
-                                                         *cal,
-                                                         &fd_idx,
-                                                         &rs_idx);
+        int add_days_result = cacheAddCalendarDays(fake_input,
+                                                   interval_to_test,
+                                                   *cal,
+                                                   &fd_idx,
+                                                   &rs_idx);
         //
         printf("Cal-Id: %d, Fake-Input: %d, Interval: %d\nAdd-Days-Result: %d, FirstDate-Idx: %d = %d, Result-Idx: %d = %d\n",
                cal->calendar_id,
@@ -414,6 +414,6 @@ TEST(kQCalendarMathTest, CalendarInvalidate) {
         GTEST_SKIP();
     }
     //
-    int ret = calcache_invalidate();
+    int ret = cacheInvalidate();
     EXPECT_EQ(ret, 0);
 }

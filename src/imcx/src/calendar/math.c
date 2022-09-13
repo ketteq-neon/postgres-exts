@@ -7,7 +7,7 @@
 #include "../common.h"
 
 /**
- * Calculates the page size of the calendar depending on the intervals. Calendar entries must be ordered ASC.
+ * Calculates the page size of the calendar depending on the intervals. InMemCalendar entries must be ordered ASC.
  * @param first_date Earliest date interval in calendar.
  * @param last_date Latest date interval in calendar.
  * @param entry_count Count of intervals in the calendar.
@@ -37,7 +37,7 @@ int calmath_calculate_page_size(int first_date, int last_date, int entry_count) 
  * @param calendar
  * @return
  */
-int calmath_get_closest_index_from_left(int date_adt, Calendar calendar) {
+int calmath_get_closest_index_from_left(int date_adt, InMemCalendar calendar) {
     int page_map_index = (date_adt / calendar.page_size) - calendar.first_page_offset;
     //
     if (page_map_index >= calendar.page_map_size) {

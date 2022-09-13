@@ -8,10 +8,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-struct Calendar *calcache_calendars; // Calendar Store.
-unsigned long calcache_calendar_count; // Calendar Store Size.
-bool calcache_filled; // True if cache is filled.
-GHashTable *calcache_calendar_names;
+struct InMemCalendar *cacheCalendars; // InMemCalendar store.
+unsigned long cacheCalendarCount; // InMemCalendar store Size.
+bool cacheFilled; // True if cache is filled.
+GHashTable *cacheCalendarNameHashTable; // Contains the calendar names.
 
 /**
  * Support function for deallocating hash map pointers (keys and values).
@@ -28,21 +28,21 @@ void glib_value_free(gpointer data) {
  * @param max_calendar_id
  * @return
  */
-int calcache_init_calendars(long min_calendar_id, long max_calendar_id) {
+int cacheInitCalendars(long min_calendar_id, long max_calendar_id) {
     if (min_calendar_id < 1) return -1;
     if (max_calendar_id < 1) return -1;
     //
     unsigned long calendar_count = max_calendar_id - min_calendar_id + 1;
     //
-    calcache_calendars = malloc(calendar_count * sizeof(struct Calendar));
-    if (calcache_calendars == NULL) {
+    cacheCalendars = malloc(calendar_count * sizeof(struct InMemCalendar));
+    if (cacheCalendars == NULL) {
         // This happens when the OS can't give us that much memory.
         return -1;
     }
     //
-    calcache_calendar_count = calendar_count;
+    cacheCalendarCount = calendar_count;
     // Allocate the HashMap that will store the calendar names (str). This is a dynamic map.
-    calcache_calendar_names = g_hash_table_new_full
+    cacheCalendarNameHashTable = g_hash_table_new_full
             (g_str_hash,
              g_str_equal,
              glib_value_free,
@@ -51,14 +51,14 @@ int calcache_init_calendars(long min_calendar_id, long max_calendar_id) {
     return 0;
 }
 
-int calcache_init_calendar_entries(Calendar *calendar, long calendar_entry_count) {
+int cacheInitCalendarEntries(InMemCalendar *calendar, long calendar_entry_count) {
     calendar->dates = malloc(calendar_entry_count * sizeof(int));
     if (calendar->dates == NULL) {
         // elog(ERROR, "Cannot allocate memory for date entries.");
         return -1;
     }
     calendar->dates_size = calendar_entry_count;
-    // elog(INFO, "%" PRIu64 " entries memory allocated for Calendar-Id: %d", calendar_entry_count, calendar->calendar_id);
+    // elog(INFO, "%" PRIu64 " entries memory allocated for InMemCalendar-Id: %d", calendar_entry_count, calendar->calendar_id);
     return 0;
 }
 
@@ -68,15 +68,15 @@ static void stdc_display_hash(gpointer key, gpointer value, gpointer user_data) 
 }
 
 void calcache_report_calendar_names_stdc() {
-    g_hash_table_foreach(calcache_calendar_names, stdc_display_hash, NULL);
+    g_hash_table_foreach(cacheCalendarNameHashTable, stdc_display_hash, NULL);
 }
 
 
 void calcache_report_calendar_names(GHFunc display_func) {
-    g_hash_table_foreach(calcache_calendar_names, display_func, NULL);
+    g_hash_table_foreach(cacheCalendarNameHashTable, display_func, NULL);
 }
 
-void calcache_init_add_calendar_name(Calendar calendar, char *calendar_name) {
+void cacheInitAddCalendarName(InMemCalendar calendar, char *calendar_name) {
     // Convert Int to Str
     int num_len = snprintf(NULL, 0, "%d", calendar.calendar_id);
     char * id_str = malloc((num_len + 1) * sizeof(char));
@@ -85,20 +85,20 @@ void calcache_init_add_calendar_name(Calendar calendar, char *calendar_name) {
     // TODO: Check how to save value as Int and not Str (char*)
     coutil_str_to_lowercase(calendar_name);
     char * calendar_name_ll = strdup(calendar_name);
-    g_hash_table_insert(calcache_calendar_names, calendar_name_ll, id_str);
+    g_hash_table_insert(cacheCalendarNameHashTable, calendar_name_ll, id_str);
 }
 
-int calcache_get_calendar_by_name(char* calendar_name, Calendar * calendar) {
+int cacheGetCalendarByName(char* calendar_name, InMemCalendar * calendar) {
     coutil_str_to_lowercase(calendar_name);
-    _Bool found = g_hash_table_contains(calcache_calendar_names, calendar_name);
+    _Bool found = g_hash_table_contains(cacheCalendarNameHashTable, calendar_name);
     if (found) {
-        char * calendar_id_str = g_hash_table_lookup(calcache_calendar_names, calendar_name);
+        char * calendar_id_str = g_hash_table_lookup(cacheCalendarNameHashTable, calendar_name);
         long calendar_id_l = strtol(calendar_id_str, NULL, 10);
         if (calendar_id_l > INT32_MAX) {
             // out of bounds.
             return -1;
         }
-        * calendar = calcache_calendars[calendar_id_l - 1];
+        * calendar = cacheCalendars[calendar_id_l - 1];
         return 0;
     }
     return -1;
@@ -109,7 +109,7 @@ int calcache_get_calendar_by_name(char* calendar_name, Calendar * calendar) {
  * @param calendar
  * @return
  */
-int calcache_init_page_size(Calendar *calendar) {
+int cacheInitPageSize(InMemCalendar *calendar) {
     int last_date = calendar->dates[calendar->dates_size - 1];
     int first_date = calendar->dates[0];
     int entry_count = calendar->dates_size;
@@ -152,10 +152,10 @@ int calcache_init_page_size(Calendar *calendar) {
  * @param result_date_idx
  * @return
  */
-int calcache_add_calendar_days(
+int cacheAddCalendarDays(
         int input_date,
         int interval,
-        Calendar calendar,
+        InMemCalendar calendar,
         // Optional, set to NULL if it will not be used.
         int * first_date_idx,
         int * result_date_idx
@@ -194,25 +194,25 @@ int calcache_add_calendar_days(
 
 /**
  * Clears the Cache
- * @return -1 if error, 0 if ok.
+ * @return -1 if error, 0 if OK.
  */
-int calcache_invalidate() {
+int cacheInvalidate() {
     int cc;
     //
-    if (calcache_calendar_count == 0) {
+    if (cacheCalendarCount == 0) {
         return -1;
     }
     // Free Entries 1st
-    for (cc = 0; cc < calcache_calendar_count; cc++) {
-        free(calcache_calendars[cc].dates);
+    for (cc = 0; cc < cacheCalendarCount; cc++) {
+        free(cacheCalendars[cc].dates);
     }
     // Then Free Store
-    free(calcache_calendars);
+    free(cacheCalendars);
     // Then Destroy Hashmap
-    g_hash_table_destroy(calcache_calendar_names);
+    g_hash_table_destroy(cacheCalendarNameHashTable);
     // Reset Control Vars
-    calcache_calendar_count = 0;
-    calcache_filled = false;
+    cacheCalendarCount = 0;
+    cacheFilled = false;
     // Done
     return 0;
 }

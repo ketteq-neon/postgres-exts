@@ -5,7 +5,7 @@
 #ifndef KETTEQ_POSTGRESQL_EXTENSIONS_CALENDAR_H
 #define KETTEQ_POSTGRESQL_EXTENSIONS_CALENDAR_H
 
-typedef struct Calendar {
+typedef struct InMemCalendar {
     unsigned int calendar_id;
 
     int * dates;
@@ -17,7 +17,7 @@ typedef struct Calendar {
     int * page_map;
     int page_map_size;
     // int initialized; // 0 = not initialized, 1 = initialized
-} Calendar;
+} InMemCalendar;
 
 #include "calendar/cache.h"
 #include "calendar/math.h"

@@ -19,13 +19,14 @@ AS 'MODULE_PATHNAME',
 'kq_report_cache'
     LANGUAGE C IMMUTABLE STRICT;
 
-
+-- Calculates next date for the given days (selects calendar by ID).
 CREATE FUNCTION kq_add_calendar_days(date, int, int)
     RETURNS DATE
 AS 'MODULE_PATHNAME',
     'kq_add_calendar_days'
 LANGUAGE C IMMUTABLE STRICT ;
 
+-- Calculates next date for the given days (selects calendar by NAME).
 CREATE FUNCTION kq_add_calendar_days_by_name(date, int, text)
     RETURNS DATE
 AS 'MODULE_PATHNAME',

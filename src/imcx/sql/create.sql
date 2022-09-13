@@ -1,4 +1,5 @@
---- (C) ketteQ, Inc.
+--- InMem Calendar Extension (IMCX)
+--- (C) KetteQ, Inc.
 ---- Giancarlo A. Chiappe Aguilar
 
 -- Create the Regression Tests Schema and add some data

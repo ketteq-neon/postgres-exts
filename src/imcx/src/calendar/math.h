@@ -12,6 +12,6 @@
 #define FUTURE DATEVAL_NOEND
 
 int calmath_calculate_page_size(int first_date, int last_date, int entry_count);
-int calmath_get_closest_index_from_left(int date_adt, Calendar calendar);
+int calmath_get_closest_index_from_left(int date_adt, InMemCalendar calendar);
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_MATH_H
