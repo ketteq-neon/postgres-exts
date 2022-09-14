@@ -61,7 +61,7 @@ Required files for installation:
 Install as normal Postgres Extension, with release binaries built, copy
 "PostgreSQL Extension Mapping File" `kq_imcx--0.1.sql`, 
 "Extension Control File" `kq_imcx.control` and "Extension Shared Library" 
-`kq_imcx.so` to the target PostgresSQL Extension Folder.
+`kq_imcx.so` to the target PostgreSQL Extension Folder.
 
 As an alternate method, if you want to install in the same computer that
 has built the extension use the automatic installation option:
@@ -79,28 +79,41 @@ After installation restart the database instance.
 sudo systemctl restart postgresql
 ```
 
+# Removal / Uninstall
+
+Just delete all three extension files from the PostgreSQL's extensions folder. Sudo/Root access may be required.
+
+After manual deletion of files, restart PostgreSQL Server.
+
 # Use
 
 Enable the extension using the `CREATE EXTENSION IF NOT EXISTS kq_imcx` command. This command can
-be emitted using `psql`.
+be emitted using `psql` using a **superuser account** (like the `postgres` account). 
+
+To use the extension with a non-superuser account, you should connect first using the superuser account, 
+switch to the target client database and from there issue the create extension command. After that, the 
+extension will be available to any user that has access to that DB. 
+
+Is not recommended to give superuser powers to an account just to enable the extension.
 
 After the extension is enable the following functions will be available
 from the SQL-query interface:
 
-| Function                                            | Description                                                            |
-|-----------------------------------------------------|------------------------------------------------------------------------|
-| kq_load_calendars()                                 | Reads the calendar table and loads it into memory.                     |
-| kq_clear_calendar_cache()                           | Invalidates the loaded cache.                                          |
-| kq_show_calendar_cache()                            | List the cached calendars.                                             |   
-| kq_add_calendar_days(`date`, `int`, `int`)          | Calculate the next or previous date using the calendar ID.             |
-| kq_add_calendar_days_by_name(`date`, `int`, `text`) | Same as the previous function but uses the calendar NAME insted of ID. |
+| Function                                            | Description                                                               |
+|-----------------------------------------------------|---------------------------------------------------------------------------|
+| kq_imcx_info()                                      | Returns information about the extension as records.                       |
+| kq_load_calendars()                                 | Reads the calendar table and loads it into memory.                        |
+| kq_clear_calendar_cache()                           | Invalidates the loaded cache.                                             |
+| kq_show_calendar_cache()                            | List the cached calendars.                                                |   
+| kq_add_calendar_days(`date`, `int`, `int`)          | Calculate the next or previous date using the calendar ID.                |
+| kq_add_calendar_days_by_name(`date`, `int`, `text`) | Same as the previous function but uses the calendar NAMEs instead of IDs. |
 
 
 # Architecture
 
-Postgres extensions are driven by a "bridge" C file with functions which
-will be then defined in the "extension entrypoint" SQL that will make 
-"bridge" C functions available from SQL-query interface.
+Postgres extensions are driven by a "bridge" (or main) C file with functions which
+will be then mapped in the "extension mapping" SQL file that will make mapped "bridge" C functions 
+available from the SQL-query interface.
 
 | File                           | Description                       |
 |--------------------------------|-----------------------------------|
