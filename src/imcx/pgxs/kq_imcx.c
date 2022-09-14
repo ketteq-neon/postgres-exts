@@ -3,20 +3,54 @@
  * Giancarlo Chiappe
  */
 
-#include <postgres.h>
-#include <fmgr.h>
-#include <inttypes.h>
-#include <stdio.h>
-//
-#include "utils/date.h"
-#include "utils/builtins.h"
-#include "utils/memutils.h"
-#include "executor/spi.h"
-//
-#include "../src/calendar.h"
-//
+#include "kq_imcx.h"
 
-PG_MODULE_MAGIC;
+// Init of Extension
+
+void _PG_init(void)
+{
+    elog(INFO, "KetteQ InMem Calendar Extension is now loaded.");
+}
+
+void _PG_fini(void)
+{
+    elog(INFO, "Unloaded KetteQ InMem Calendar Extension");
+}
+
+PG_FUNCTION_INFO_V1(kq_imcx_info);
+Datum kq_imcx_info(PG_FUNCTION_ARGS) {
+    ReturnSetInfo   *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
+    TupleDesc	    tupdesc;
+    Tuplestorestate *tupstore;
+    Datum           values[2];
+    bool            nulls[2] = {0};
+    //
+    if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
+        elog(ERROR, "Invalid Return Type");
+    tupstore = tuplestore_begin_heap(true, false, work_mem);
+    values[0] = CStringGetTextDatum("Version");
+    values[1] = CStringGetTextDatum(CMAKE_VERSION);
+    rsinfo->returnMode = SFRM_Materialize;
+    rsinfo->setResult = tupstore;
+    rsinfo->setDesc = tupdesc;
+    tuplestore_putvalues(tupstore, tupdesc, values, nulls);
+    tuplestore_donestoring(tupstore);
+    /* ... C code here ... */
+    tuplestore_donestoring(tupstore);
+    return (Datum) 0;
+}
+
+PG_FUNCTION_INFO_V1(kq_invalidate_cache);
+Datum kq_invalidate_cache(PG_FUNCTION_ARGS) {
+    MemoryContext old_context = MemoryContextSwitchTo(TopMemoryContext);
+    int ret = cacheInvalidate();
+    MemoryContextSwitchTo(old_context);
+    if (ret == 0) {
+        PG_RETURN_TEXT_P(cstring_to_text("Cache Cleared."));
+    } else {
+        PG_RETURN_TEXT_P(cstring_to_text("Cache Not Exists."));
+    }
+}
 
 int pg_calcache_report() {
     if (!cacheFilled) {
@@ -41,18 +75,6 @@ int pg_calcache_report() {
         }
     }
     return 0;
-}
-
-PG_FUNCTION_INFO_V1(kq_invalidate_cache);
-Datum kq_invalidate_cache(PG_FUNCTION_ARGS) {
-    MemoryContext old_context = MemoryContextSwitchTo(TopMemoryContext);
-    int ret = cacheInvalidate();
-    MemoryContextSwitchTo(old_context);
-    if (ret == 0) {
-        PG_RETURN_TEXT_P(cstring_to_text("Cache Cleared."));
-    } else {
-        PG_RETURN_TEXT_P(cstring_to_text("Cache Not Exists."));
-    }
 }
 
 PG_FUNCTION_INFO_V1(kq_report_cache);

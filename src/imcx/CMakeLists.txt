@@ -2,6 +2,14 @@
 #
 # Author: Giancarlo Chiappe
 
+# Configuration
+configure_file (
+        "${PROJECT_SOURCE_DIR}/src/imcx/src/config.h.in"
+        "${PROJECT_BINARY_DIR}/config.h"
+)
+
+include_directories(${PROJECT_BINARY_DIR})
+
 # PGXS Extension Info
 set(This kq_imcx)
 set(Version 0.1)
@@ -16,7 +24,7 @@ add_postgresql_extension(
         ${This}
         VERSION ${Version}
         COMMENT ${Description}
-        SOURCES ${CommonSrc} pgxs/ext_main.c
+        SOURCES ${CommonSrc} pgxs/kq_imcx.c
         SCRIPTS pgxs/kq_imcx--0.1.sql)
 # Link to Other C Libraries (GLib2.0)
 target_link_libraries(${This} PkgConfig::deps)
@@ -26,7 +34,7 @@ target_link_libraries(${This} PkgConfig::deps)
 
 # Test Target Configuration
 set(ThisTest imcx_test)
-set(TestSrc test/calendar_cache_tests.cpp)
+set(TestSrc test/calendar_cache_tests.cpp pgxs/kq_imcx.h)
 # Build the Test Executable
 add_executable(${ThisTest} ${CommonSrc} ${TestSrc})
 set(_link_flags "${PostgreSQL_SHARED_LINK_OPTIONS}")

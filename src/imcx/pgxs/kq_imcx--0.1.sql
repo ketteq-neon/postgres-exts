@@ -1,3 +1,9 @@
+-- Gives information about the extension
+CREATE FUNCTION kq_imcx_info()
+    RETURNS SETOF RECORD
+AS 'MODULE_PATHNAME', 'kq_imcx_info'
+    LANGUAGE C STRICT VOLATILE;
+
 -- This caches all the calendars into memory
 CREATE FUNCTION kq_load_calendars()
     RETURNS TEXT

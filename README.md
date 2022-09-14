@@ -59,7 +59,7 @@ Required files for installation:
 * The Extension Entrypoint SQL file should be copied from the source folder.
 
 Install as normal Postgres Extension, with release binaries built, copy
-"PostgreSQL Extension Entrypoint" `kq_imcx--0.1.sql`, 
+"PostgreSQL Extension Mapping File" `kq_imcx--0.1.sql`, 
 "Extension Control File" `kq_imcx.control` and "Extension Shared Library" 
 `kq_imcx.so` to the target PostgresSQL Extension Folder.
 
@@ -102,9 +102,9 @@ Postgres extensions are driven by a "bridge" C file with functions which
 will be then defined in the "extension entrypoint" SQL that will make 
 "bridge" C functions available from SQL-query interface.
 
-| File                           | Description                     |
-|--------------------------------|---------------------------------|
-| src/imcx/pgxs/ext_main.c       | Extension C Bridge              |
-| src/imcx/pgxs/kq_imcx--0.1.sql | PostgreSQL Extension Entrypoint |
-| src/imcx/src/                  | Extension C Source Files        |
+| File                           | Description                       |
+|--------------------------------|-----------------------------------|
+| src/imcx/pgxs/ext_main.c       | Extension C Bridge (Main)         |
+| src/imcx/pgxs/kq_imcx--0.1.sql | PostgreSQL Extension Mapping File |
+| src/imcx/src/                  | Extension C Source Files          |
 
