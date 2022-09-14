@@ -13,12 +13,14 @@ extern struct InMemCalendar * cacheCalendars;
 extern unsigned long cacheCalendarCount;
 extern bool cacheFilled;
 extern GHashTable * cacheCalendarNameHashTable;
+extern char * cacheCalendarFindCalendarName;
 
 int cacheInitCalendars(long min_calendar_id, long max_calendar_id);
 int cacheInitCalendarEntries(InMemCalendar * calendar, long calendar_entry_count);
 void calcache_report_calendar_names_stdc();
 void calcache_report_calendar_names(GHFunc display_func);
 void cacheInitAddCalendarName(InMemCalendar calendar, char *calendar_name);
+char * cacheGetCalendarName(InMemCalendar calendar);
 int cacheGetCalendarByName(char* calendar_name, InMemCalendar * calendar);
 int cacheInitPageSize(InMemCalendar * calendar);
 int cacheAddCalendarDays(

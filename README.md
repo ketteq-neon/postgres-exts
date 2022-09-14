@@ -17,12 +17,12 @@ hosts is not supported.
 1. Install development dependencies:
 
     ```bash
-    sudo apt install libpam-dev libxslt-dev liblz4-dev libreadline-dev libkrb5-dev
+    sudo apt install build-essential pkg-config postgresql-server-dev-14 libgtk2.0-dev libpq-dev libpam-dev libxslt-dev liblz4-dev libreadline-dev libkrb5-dev cmake
     ```
 
-2. Clone repo
-3. CD to repo root dir
-4. Clone Google Test
+2. Clone this repo.
+3. `cd` to newly cloned repo.
+4. Clone `Google Test` inside it:
 
     ```bash
     git clone https://github.com/google/googletest 

@@ -12,6 +12,7 @@ struct InMemCalendar *cacheCalendars; // InMemCalendar store.
 unsigned long cacheCalendarCount; // InMemCalendar store Size.
 bool cacheFilled; // True if cache is filled.
 GHashTable *cacheCalendarNameHashTable; // Contains the calendar names.
+char * cacheCalendarFindCalendarName = NULL; // Contains the name of the latest found calendar
 
 /**
  * Support function for deallocating hash map pointers (keys and values).
@@ -82,10 +83,27 @@ void cacheInitAddCalendarName(InMemCalendar calendar, char *calendar_name) {
     char * id_str = malloc((num_len + 1) * sizeof(char));
     snprintf(id_str, num_len+1, "%d", calendar.calendar_id);
     //
-    // TODO: Check how to save value as Int and not Str (char*)
+    // TODO: Check how to save the id value as Int and not Str (char*) -> similar to IntHashMap
     coutil_str_to_lowercase(calendar_name);
     char * calendar_name_ll = strdup(calendar_name);
     g_hash_table_insert(cacheCalendarNameHashTable, calendar_name_ll, id_str);
+}
+
+void findCalendarName(gpointer _key, gpointer _value, gpointer _user_data) {
+    if (strcmp((char*) _key, (char*) _user_data) == 0) {
+        cacheCalendarFindCalendarName = (char*) _key;
+    }
+}
+
+char * cacheGetCalendarName(InMemCalendar calendar) {
+    // Convert Int to Str
+    int num_len = snprintf(NULL, 0, "%d", calendar.calendar_id);
+    char * id_str = malloc((num_len + 1) * sizeof(char));
+    snprintf(id_str, num_len+1, "%d", calendar.calendar_id);
+    // Find the Name
+    g_hash_table_foreach(cacheCalendarNameHashTable, findCalendarName, id_str);
+    // Return Result
+    return cacheCalendarFindCalendarName;
 }
 
 int cacheGetCalendarByName(char* calendar_name, InMemCalendar * calendar) {

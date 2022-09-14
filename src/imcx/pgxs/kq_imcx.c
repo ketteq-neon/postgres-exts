@@ -19,24 +19,24 @@ void _PG_fini(void)
 
 PG_FUNCTION_INFO_V1(kq_imcx_info);
 Datum kq_imcx_info(PG_FUNCTION_ARGS) {
-    ReturnSetInfo   *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
-    TupleDesc	    tupdesc;
-    Tuplestorestate *tupstore;
+    ReturnSetInfo   *pReturnSetInfo = (ReturnSetInfo *) fcinfo->resultinfo;
+    TupleDesc	    tupleDesc;
+    Tuplestorestate *pTuplestorestate;
     Datum           values[2];
     bool            nulls[2] = {0};
     //
-    if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
+    if (get_call_result_type(fcinfo, NULL, &tupleDesc) != TYPEFUNC_COMPOSITE)
         elog(ERROR, "Invalid Return Type");
-    tupstore = tuplestore_begin_heap(true, false, work_mem);
+    pTuplestorestate = tuplestore_begin_heap(true, false, work_mem);
     values[0] = CStringGetTextDatum("Version");
     values[1] = CStringGetTextDatum(CMAKE_VERSION);
-    rsinfo->returnMode = SFRM_Materialize;
-    rsinfo->setResult = tupstore;
-    rsinfo->setDesc = tupdesc;
-    tuplestore_putvalues(tupstore, tupdesc, values, nulls);
-    tuplestore_donestoring(tupstore);
+    pReturnSetInfo->returnMode = SFRM_Materialize;
+    pReturnSetInfo->setResult = pTuplestorestate;
+    pReturnSetInfo->setDesc = tupleDesc;
+    tuplestore_putvalues(pTuplestorestate, tupleDesc, values, nulls);
+    tuplestore_donestoring(pTuplestorestate);
     /* ... C code here ... */
-    tuplestore_donestoring(tupstore);
+    tuplestore_donestoring(pTuplestorestate);
     return (Datum) 0;
 }
 
@@ -52,34 +52,51 @@ Datum kq_invalidate_cache(PG_FUNCTION_ARGS) {
     }
 }
 
-int pg_calcache_report() {
+void report_names(gpointer _key, gpointer _value, gpointer _user_data) {
+    char * key = _key;
+    char * value = _value;
+    elog(INFO, "SliceType-Name: '%s' -> SliceTypeId: '%s'", key, value);
+}
+
+int pg_calcache_report(int showEntries, int showPageMapEntries, int showNames) {
     if (!cacheFilled) {
         return -1;
     }
-    elog(INFO, "Calendar Count: %" PRIu64, cacheCalendarCount);
+    elog(INFO, "Slices-Id Min-Max %" PRIu64, cacheCalendarCount);
     for (uint64 i = 0; i < cacheCalendarCount; i++) {
         InMemCalendar curr_calendar = cacheCalendars[i];
-        elog(INFO, "Calendar-Id: %d, "
-                   "Entries: %d, "
-                   "Page Map Size: %d, "
-                   "Page Size: %d",
-             curr_calendar.calendar_id,
-             curr_calendar.dates_size,
-             curr_calendar.page_map_size,
-             curr_calendar.page_size);
-        for (uint32 j = 0; j < curr_calendar.dates_size; j++) {
-            elog(INFO, "Entry[%d]: %d", j, curr_calendar.dates[j]);
-        }
-        for (uint32 j = 0; j < curr_calendar.page_map_size; j++) {
-            elog(INFO, "PageMap Entry[%d]: %d", j, curr_calendar.page_map[j]);
+        if (curr_calendar.calendar_id != 0) {
+            // char * calendar_name = cacheGetCalendarName(curr_calendar); // Requires Fixing
+            elog(INFO, "SliceType-Id: %d, "
+                       "Entries: %d, "
+                       "Page Map Size: %d, "
+                       "Page Size: %d",
+                 curr_calendar.calendar_id,
+                 curr_calendar.dates_size,
+                 curr_calendar.page_map_size,
+                 curr_calendar.page_size
+                 );
+            if (showEntries)
+                for (uint32 j = 0; j < curr_calendar.dates_size; j++) {
+                    elog(INFO, "Entry[%d]: %d", j, curr_calendar.dates[j]);
+                }
+            if (showPageMapEntries)
+                for (uint32 j = 0; j < curr_calendar.page_map_size; j++) {
+                    elog(INFO, "PageMap Entry[%d]: %d", j, curr_calendar.page_map[j]);
+                }
         }
     }
+    if (showNames)
+        g_hash_table_foreach(cacheCalendarNameHashTable, report_names, NULL);
     return 0;
 }
 
 PG_FUNCTION_INFO_V1(kq_report_cache);
 Datum kq_report_cache(PG_FUNCTION_ARGS) {
-    int ret = pg_calcache_report();
+    int32 showEntries = PG_GETARG_INT32(0);
+    int32 showPageMapEntries = PG_GETARG_INT32(1);
+    int32 showNames = PG_GETARG_INT32(2);
+    int ret = pg_calcache_report(showEntries, showPageMapEntries, showNames);
     if (ret == 0) {
         PG_RETURN_TEXT_P(cstring_to_text("OK."));
     } else {
@@ -153,15 +170,25 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
     // Extra Counters
     int i;
     // Query #1, Get MIN_ID and MAX_ID of Calendars
-    char *sql_get_min_max = "select min(ce.calendar_id), max(ce.calendar_id) from calendar_entries ce;";
-    // Query #2, Get InMemCalendar's Entries Count and Names
-    char *sql_get_entries_count_per_calendar_id = "select ce.calendar_id, count(*), (select c.\"name\" "
-                                                  "from calendar c where c.id = ce.calendar_id) \"name\" from "
-                                                  "calendar_entries ce group by ce.calendar_id order by ce.calendar_id "
-                                                  "asc ;";
+//    char *sql_get_min_max = "select min(ce.calendar_id), max(ce.calendar_id) from calendar_entries ce;";
+    char *sql_get_min_max = "select min(s.id), max(s.id) from ketteq.slice s"; // 1 - 74079
+    // Query #2, Get Calendar's Entries Count and Names
+//    char *sql_get_entries_count_per_calendar_id = "select ce.calendar_id, count(*), (select c.\"name\" "
+//                                                  "from calendar c where c.id = ce.calendar_id) \"name\" from "
+//                                                  "calendar_entries ce group by ce.calendar_id order by ce.calendar_id "
+//                                                  "asc ;";
+    char *sql_get_entries_count_per_calendar_id = "select s.slice_type_id, count(*), "
+                                                  "(select st.\"name\" from ketteq.slice_type st where st.id = s.slice_type_id) \"name\" "
+                                                  "from ketteq.slice s "
+                                                  "group by s.slice_type_id "
+                                                  "order by s.slice_type_id asc;";
     // Query #3, Get Entries of Calendars
-    char *sql_get_entries = "select ce.calendar_id , ce.\"date\" from calendar_entries ce order by ce.calendar_id asc,"
-                            " ce.\"date\" asc ;";
+//    char *sql_get_entries = "select ce.calendar_id , ce.\"date\" from calendar_entries ce order by ce.calendar_id asc,"
+//                            " ce.\"date\" asc ;";
+    char *sql_get_entries = "select s.slice_type_id, s.start_on "
+                            "from ketteq.slice s "
+                            "order by s.slice_type_id asc, "
+                            "s.start_on asc;";
     // SPI
     SPITupleTable *spi_tuple_table;
     TupleDesc spi_tuple_desc;
@@ -178,7 +205,7 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
         elog(ERROR, "No calendars.");
     }
     //
-    elog(INFO, "Q1: Got %" PRIu64 " query_exec_rowcount.", query_exec_rowcount);
+    // elog(INFO, "Q1: Got %" PRIu64 " calendar entries.", query_exec_rowcount);
     // Get the Data and Descriptor
     spi_tuple_table = SPI_tuptable;
     spi_tuple_desc = spi_tuple_table->tupdesc;
@@ -194,8 +221,8 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
                           spi_tuple_desc,
                           2,
                           &isNull));
-    //
-    elog(INFO, "Calendar-Id: Min: %" PRId64 ", Max: %" PRId64, min_value, max_value);
+//    elog(INFO, "Calendar-Id: Min: %" PRId64 ", Max: %" PRId64, min_value, max_value);
+    elog(INFO, "Q1: SliceType-Id: Min: %" PRId64 ", Max: %" PRId64, min_value, max_value);
     // Init the Struct's Cache
     prev_ctx = MemoryContextSwitchTo(TopMemoryContext);
     cacheInitCalendars(min_value, (long) max_value);
@@ -208,7 +235,8 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
         SPI_finish();
         elog(ERROR, "Cannot count calendar's entries.");
     }
-    elog(INFO, "Q2: Got %" PRIu64 " calendar_ids with entries count.", query_exec_rowcount);
+    // elog(INFO, "Q2: Got %" PRIu64 " calendar_ids with entries count.", query_exec_rowcount);
+    elog(INFO, "Q2: Got %" PRIu64 " SliceTypes.", query_exec_rowcount);
     //
     spi_tuple_table = SPI_tuptable;
     spi_tuple_desc = spi_tuple_table->tupdesc;
@@ -232,19 +260,19 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
                         3
                         )
                 );
-        elog(INFO, "Got: Name: %s, Calendar-Id: %" PRIu64 ", Entries: %" PRIu64,
+//        elog(INFO, "Got: Name: %s, Calendar-Id: %" PRIu64 ", Entries: %" PRIu64,
+        elog(INFO, "Q2 (Cursor): Got: SliceTypeName: %s, SliceType: %" PRIu64 ", Entries: %" PRIu64,
              calendar_name,
              calendar_id, calendar_entry_count);
-
+        // Add to the cache
         cacheCalendars[calendar_id - 1].calendar_id = calendar_id;
-
         MemoryContext prev_memory_context = MemoryContextSwitchTo(TopMemoryContext);
         cacheInitCalendarEntries(
                 &cacheCalendars[calendar_id - 1],
                 (long) calendar_entry_count
         );
         MemoryContextSwitchTo(prev_memory_context);
-        // Add The InMemCalendar Name
+        // Add The Calendar Name
         cacheInitAddCalendarName(cacheCalendars[calendar_id - 1], calendar_name);
     }
     // -> Exec Q3
@@ -255,7 +283,7 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
         SPI_finish();
         elog(ERROR, "No calendar entries.");
     }
-    elog(INFO, "Q3: Got %" PRIu64 " calendar entries in total.", query_exec_rowcount);
+//    elog(INFO, "Q3: Got %" PRIu64 " calendar entries in total.", query_exec_rowcount);
     //
     spi_tuple_table = SPI_tuptable;
     spi_tuple_desc = spi_tuple_table->tupdesc;
@@ -275,8 +303,8 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
                               2,
                               &isNull));
 
-        elog(INFO, "DateADT Tuple: Calendar-Id: %" PRIu64 ", DateADT (Bin): %d",
-             calendar_id, calendar_entry);
+//        elog(INFO, "DateADT Tuple: Calendar-Id: %" PRIu64 ", DateADT (Bin): %d",
+//             calendar_id, calendar_entry);
 
         uint64 calendar_index = calendar_id - 1;
 
@@ -292,7 +320,8 @@ kq_load_all_calendars(PG_FUNCTION_ARGS) {
             MemoryContextSwitchTo(prev_ctx);
         }
     }
+    elog(INFO, "Q3: Cached %" PRIu64 " slices in total.", query_exec_rowcount);
     SPI_finish();
     cacheFilled = true;
-    PG_RETURN_TEXT_P(strdup("Executed OK."));
+    PG_RETURN_TEXT_P(cstring_to_text("Done."));
 }

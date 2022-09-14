@@ -19,7 +19,7 @@ AS 'MODULE_PATHNAME',
 LANGUAGE C IMMUTABLE STRICT;
 
 -- Displays as Log Messages the contents of the cache.
-CREATE FUNCTION kq_show_calendar_cache()
+CREATE FUNCTION kq_show_calendar_cache(int, int, int)
     RETURNS TEXT
 AS 'MODULE_PATHNAME',
 'kq_report_cache'
