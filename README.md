@@ -56,7 +56,7 @@ Required files for installation:
 | `kq_imcx.control`   | Extension Control File   | `/usr/share/postgresql/14/extension/kq_imcx.control`  |
 | `kq_imcx.so`        | Extension Shared Library | `/usr/lib/postgresql/14/lib/kq_imcx.so`               |
 
-* The Extension Mapping SQL file should be copied from the source folder.
+* The Extension Mapping File should be copied from the source folder.
 
 Install as normal Postgres Extension, with release binaries built, copy
 "PostgreSQL Extension Mapping File" `kq_imcx--0.1.sql`, 
