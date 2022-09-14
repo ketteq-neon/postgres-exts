@@ -52,7 +52,7 @@ Required files for installation:
 
 | File                | Description              | Manual Install Path                                   |
 |---------------------|--------------------------|-------------------------------------------------------|
-| `kq_imcx--0.1.sql`* | Extension Entrypoint     | `/usr/share/postgresql/14/extension/kq_imcx--0.1.sql` |
+| `kq_imcx--0.1.sql`* | Extension Mapping File   | `/usr/share/postgresql/14/extension/kq_imcx--0.1.sql` |
 | `kq_imcx.control`   | Extension Control File   | `/usr/share/postgresql/14/extension/kq_imcx.control`  |
 | `kq_imcx.so`        | Extension Shared Library | `/usr/lib/postgresql/14/lib/kq_imcx.so`               |
 
