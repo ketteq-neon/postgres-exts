@@ -1,4 +1,4 @@
-# In-Mem Calendar Extension (IMCX)
+# Postgres Extensions (PGXS)
 
 - Written in C.
 - Uses GHashTable to store calendar cache in memory.
@@ -48,6 +48,8 @@ hosts is not supported.
 
 # Installation
 
+## InMemory Calendar Extension (IMCX)
+
 Required files for installation:
 
 | File                | Description              | Manual Install Path                                   |
@@ -87,6 +89,8 @@ After manual deletion of files, restart PostgreSQL Server.
 
 # Use
 
+## InMemory Calendar Extension (IMCX)
+
 Enable the extension using the `CREATE EXTENSION IF NOT EXISTS kq_imcx` command. This command can
 be emitted using `psql` using a **superuser account** (like the `postgres` account). 
 
@@ -115,9 +119,11 @@ Postgres extensions are driven by a "bridge" (or main) C file with functions whi
 will be then mapped in the "extension mapping" SQL file that will make mapped "bridge" C functions 
 available from the SQL-query interface.
 
+## Example (InMemory Calendar Extension)
+
 | File                           | Description                       |
 |--------------------------------|-----------------------------------|
-| src/imcx/pgxs/ext_main.c       | Extension C Bridge (Main)         |
+| src/imcx/pgxs/kq_imcx.c        | Extension C Bridge (Main)         |
 | src/imcx/pgxs/kq_imcx--0.1.sql | PostgreSQL Extension Mapping File |
 | src/imcx/src/                  | Extension C Source Files          |
 
