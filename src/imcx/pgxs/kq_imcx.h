@@ -23,5 +23,13 @@ PG_MODULE_MAGIC;
 
 void _PG_init(void);
 void _PG_fini(void);
+void load_all_slices();
+
+Datum kq_imcx_info(PG_FUNCTION_ARGS);
+Datum kq_invalidate_cache(PG_FUNCTION_ARGS);
+Datum kq_report_cache(PG_FUNCTION_ARGS);
+Datum kq_add_calendar_days(PG_FUNCTION_ARGS);
+Datum kq_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS);
+Datum kq_load_all_calendars(PG_FUNCTION_ARGS);
 
 #endif //KETTEQ_INMEMORYCALENDAR_EXTENSION_KQ_IMCX_H

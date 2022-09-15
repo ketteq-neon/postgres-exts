@@ -103,14 +103,14 @@ Is not recommended to give superuser powers to an account just to enable the ext
 After the extension is enable the following functions will be available
 from the SQL-query interface:
 
-| Function                                            | Description                                                               |
-|-----------------------------------------------------|---------------------------------------------------------------------------|
-| kq_imcx_info()                                      | Returns information about the extension as records.                       |
-| kq_load_calendars()                                 | Reads the calendar table and loads it into memory.                        |
-| kq_clear_calendar_cache()                           | Invalidates the loaded cache.                                             |
-| kq_show_calendar_cache()                            | List the cached calendars.                                                |   
-| kq_add_calendar_days(`date`, `int`, `int`)          | Calculate the next or previous date using the calendar ID.                |
-| kq_add_calendar_days_by_name(`date`, `int`, `text`) | Same as the previous function but uses the calendar NAMEs instead of IDs. |
+| Function                                                                          | Description                                                               |
+|-----------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| kq_imcx_info()                                                                    | Returns information about the extension as records.                       |
+| kq_load_calendars()                                                               | Reads the calendar table and loads it into memory.                        |
+| kq_clear_calendar_cache()                                                         | Invalidates the loaded cache.                                             |
+| kq_show_calendar_cache()                                                          | List the cached calendars.                                                |   
+| kq_add_calendar_days(`input date`, `interval int`, `slicetype-id int`)            | Calculate the next or previous date using the calendar ID.                |
+| kq_add_calendar_days_by_name(`input date`, `interval int`, `slicetype-name text`) | Same as the previous function but uses the calendar NAMEs instead of IDs. |
 
 
 # Architecture
