@@ -1,18 +1,17 @@
 # Postgres Extensions (PGXS)
 
 - Written in C.
-- Uses GHashTable to store calendar cache in memory.
-- Uses the PostgreSQL Server's memory.
 - Includes PGXS CMake build environment.
+- New extensions can be added easily.
 
 *(C) 2022 KetteQ*
 
-## Build Requirements
+# Build Requirements
 
 This extension should be compiled in a Linux host. Building in macOS or Windows
 hosts is not supported.
 
-### Ubuntu/Debian Linux
+## Ubuntu/Debian Linux
 
 1. Install development dependencies:
 
@@ -46,9 +45,21 @@ hosts is not supported.
    
 * Other build helpers such as `ninja` can be used as well.
 
+# Extensions And Features
+
+| Extension Name                       | Create Extension Name | Description                                                          |
+|--------------------------------------|-----------------------|----------------------------------------------------------------------|
+| In-Memory Calendar Extension (IMCX)  | `kq_imcx`             | Loads slices into memory and provides calendar calculation functions |
+
+## In-Memory Calendar Extension (IMCX)
+
+- Uses GHashTable to store slices cache in memory.
+- Uses the PostgreSQL Server's memory.
+- Provides very fast calendar calculation functions.
+
 # Installation
 
-## InMemory Calendar Extension (IMCX)
+## In-Memory Calendar Extension (IMCX)
 
 Required files for installation:
 
@@ -87,9 +98,9 @@ Just delete all three extension files from the PostgreSQL's extensions folder. S
 
 After manual deletion of files, restart PostgreSQL Server.
 
-# Use
+# Usage
 
-## InMemory Calendar Extension (IMCX)
+## In-Memory Calendar Extension (IMCX)
 
 Enable the extension using the `CREATE EXTENSION IF NOT EXISTS kq_imcx` command. This command can
 be emitted using `psql` using a **superuser account** (like the `postgres` account). 
@@ -100,26 +111,24 @@ extension will be available to any user that has access to that DB.
 
 Is not recommended to give superuser powers to an account just to enable the extension.
 
-After the extension is enable the following functions will be available
+After the extension is enabled the following functions will be available
 from the SQL-query interface:
 
-| Function                                                                          | Description                                                               |
-|-----------------------------------------------------------------------------------|---------------------------------------------------------------------------|
-| kq_imcx_info()                                                                    | Returns information about the extension as records.                       |
-| kq_load_calendars()                                                               | Reads the calendar table and loads it into memory.                        |
-| kq_clear_calendar_cache()                                                         | Invalidates the loaded cache.                                             |
-| kq_show_calendar_cache()                                                          | List the cached calendars.                                                |   
-| kq_add_calendar_days(`input date`, `interval int`, `slicetype-id int`)            | Calculate the next or previous date using the calendar ID.                |
-| kq_add_calendar_days_by_name(`input date`, `interval int`, `slicetype-name text`) | Same as the previous function but uses the calendar NAMEs instead of IDs. |
+| Function                                                                   | Description                                                               |
+|----------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| kq_imcx_info()                                                             | Returns information about the extension as records.                       |
+| kq_imcx_invalidate()                                                       | Invalidates the loaded cache.                                             |
+| kq_imcx_report(`showEntries int`,`showPageMap int `,`showSliceNames int`)  | List the cached calendars.                                                |   
+| kq_imcx_add_days(`input date`, `interval int`, `slicetype-id int`)         | Calculate the next or previous date using the calendar ID.                |
+| kq_imcx_add_days_name(`input date`, `interval int`, `slicetype-name text`) | Same as the previous function but uses the calendar NAMEs instead of IDs. |
 
 
 # Architecture
 
-Postgres extensions are driven by a "bridge" (or main) C file with functions which
-will be then mapped in the "extension mapping" SQL file that will make mapped "bridge" C functions 
-available from the SQL-query interface.
+Postgres' extensions are handled by a "bridge" (or main) C file with functions that must be mapped into the 
+"extension mapping" SQL file that will make these C functions available from the SQL query interface.
 
-## Example (InMemory Calendar Extension)
+## Example (In-Memory Calendar Extension)
 
 | File                           | Description                       |
 |--------------------------------|-----------------------------------|

@@ -13,7 +13,7 @@ include_directories(${PROJECT_BINARY_DIR})
 # PGXS Extension Info
 set(This kq_imcx)
 set(Version 0.1)
-set(Description "KetteQ In-Mem Calendar Extension (IMCX)")
+set(Description "KetteQ In-Memory Calendar Extension (IMCX)")
 
 # Common Sources
 set(CommonSrc src/common/util.c src/calendar/cache.c src/calendar/math.c)

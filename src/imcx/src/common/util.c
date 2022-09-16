@@ -7,13 +7,12 @@
 #include <ctype.h>
 #include "inttypes.h"
 
-// TODO: Delete.
-ptrdiff_t coutil_uint64_to_ptrdiff(unsigned long input) {
-    if (input > PTRDIFF_MAX) {
-        return -1;
-    }
-    return (ptrdiff_t) input;
-}
+//ptrdiff_t coutil_uint64_to_ptrdiff(unsigned long input) {
+//    if (input > PTRDIFF_MAX) {
+//        return -1;
+//    }
+//    return (ptrdiff_t) input;
+//}
 
 /**
  * From here: https://www.geeksforgeeks.org/binary-search/

@@ -12,7 +12,7 @@ struct InMemCalendar *cacheCalendars; // InMemCalendar store.
 unsigned long cacheCalendarCount; // InMemCalendar store Size.
 bool cacheFilled; // True if cache is filled.
 GHashTable *cacheCalendarNameHashTable; // Contains the calendar names.
-char * cacheCalendarFindCalendarName = NULL; // Contains the name of the latest found calendar
+char *cacheCalendarFindCalendarName; // Contains the name of the latest found calendar
 
 /**
  * Support function for deallocating hash map pointers (keys and values).
@@ -90,20 +90,32 @@ void cacheInitAddCalendarName(InMemCalendar calendar, char *calendar_name) {
 }
 
 void findCalendarName(gpointer _key, gpointer _value, gpointer _user_data) {
-    if (strcmp((char*) _key, (char*) _user_data) == 0) {
-        cacheCalendarFindCalendarName = (char*) _key;
+    const char* key = _key;
+    const char* compare = _user_data;
+    if (strcmp(key, compare) == 0) {
+//        cacheCalendarFindCalendarName = malloc(strlen(key));
+//        strcpy(cacheCalendarFindCalendarName, key);
+        cacheCalendarFindCalendarName = strdup(key);
     }
 }
 
-char * cacheGetCalendarName(InMemCalendar calendar) {
+// TODO: Requires Fixing, Is Always returning NULL
+int cacheGetCalendarName(InMemCalendar calendar, char *calendar_name) {
     // Convert Int to Str
-    int num_len = snprintf(NULL, 0, "%d", calendar.calendar_id);
+    int num_len = snprintf(NULL, 0, "%d", calendar.calendar_id); // Gets the size of chars rq. to rep. the number
     char * id_str = malloc((num_len + 1) * sizeof(char));
-    snprintf(id_str, num_len+1, "%d", calendar.calendar_id);
+    snprintf(id_str, num_len+1, "%d", calendar.calendar_id); // Do the actual conversion
     // Find the Name
     g_hash_table_foreach(cacheCalendarNameHashTable, findCalendarName, id_str);
-    // Return Result
-    return cacheCalendarFindCalendarName;
+    // Copy to Output Arg
+    calendar_name = malloc(strlen(cacheCalendarFindCalendarName));
+    strcpy(calendar_name, cacheCalendarFindCalendarName);
+    //
+    if (strlen(calendar_name) > 0) {
+        return 0;
+    } else {
+        return -1;
+    }
 }
 
 int cacheGetCalendarByName(char* calendar_name, InMemCalendar * calendar) {
