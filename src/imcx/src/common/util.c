@@ -1,5 +1,5 @@
 /**
- * (C) ketteQ, Inc.
+ * (C) KetteQ, Inc.
  */
 
 #include "util.h"
@@ -23,13 +23,6 @@ char * convertUIntToStr(uint number) {
     snprintf(returnStr, number_len+1, "%d", number);
     return returnStr;
 }
-
-//ptrdiff_t coutil_uint64_to_ptrdiff(unsigned long input) {
-//    if (input > PTRDIFF_MAX) {
-//        return -1;
-//    }
-//    return (ptrdiff_t) input;
-//}
 
 /**
  * From here: https://www.geeksforgeeks.org/binary-search/

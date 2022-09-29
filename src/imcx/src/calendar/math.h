@@ -1,5 +1,5 @@
 /**
- * (C) ketteQ, Inc.
+ * (C) KetteQ, Inc.
  */
 
 #ifndef KETTEQ_POSTGRESQL_EXTENSIONS_MATH_H

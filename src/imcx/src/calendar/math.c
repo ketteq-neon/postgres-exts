@@ -1,5 +1,5 @@
 /**
- * (C) ketteQ, Inc.
+ * (C) KetteQ, Inc.
  */
 
 #include <stdio.h>

@@ -1,5 +1,5 @@
 /**
- * (C) ketteQ, Inc.
+ * (C) KetteQ, Inc.
  */
 
 #ifndef KETTEQ_POSTGRESQL_EXTENSIONS_CACHE_H
@@ -13,7 +13,6 @@ extern struct InMemCalendar * cacheCalendars;
 extern unsigned long cacheCalendarCount;
 extern bool cacheFilled;
 extern GHashTable * cacheCalendarNameHashTable;
-extern char * cacheCalendarFindCalendarName;
 
 int cacheInitCalendars(long min_calendar_id, long max_calendar_id);
 int cacheInitCalendarEntries(InMemCalendar * calendar, long calendar_entry_count);
@@ -28,7 +27,6 @@ int cacheAddCalendarDays(
         int * result_date_idx
 );
 
-// int pg_calcache_report();
 int cacheInvalidate();
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_CACHE_H

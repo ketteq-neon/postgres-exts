@@ -1,6 +1,6 @@
-//
-// Created by gchiappe on 2022-02-10.
-//
+/**
+ * (C) KetteQ, Inc.
+ */
 
 #ifndef KETTEQ_POSTGRESQL_EXTENSIONS_COMMON_H
 #define KETTEQ_POSTGRESQL_EXTENSIONS_COMMON_H

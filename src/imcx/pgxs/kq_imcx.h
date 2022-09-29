@@ -1,3 +1,7 @@
+/**
+ * (C) KetteQ, Inc.
+ */
+
 #ifndef KETTEQ_INMEMORYCALENDAR_EXTENSION_KQ_IMCX_H
 #define KETTEQ_INMEMORYCALENDAR_EXTENSION_KQ_IMCX_H
 // Project Info (Provided by CMAKE)

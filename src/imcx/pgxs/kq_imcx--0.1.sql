@@ -1,15 +1,12 @@
+--
+-- (C) KetteQ, Inc.
+--
+
 -- Gives information about the extension
 CREATE FUNCTION kq_imcx_info()
     RETURNS TABLE ("property" text, "value" text)
 AS 'MODULE_PATHNAME', 'imcx_info'
     LANGUAGE C VOLATILE STRICT;
-
--- This caches all the calendars into memory
--- CREATE FUNCTION kq_imcx_load()
---     RETURNS TEXT
--- AS 'MODULE_PATHNAME',
--- 'kq_load_all_calendars'
---     LANGUAGE C IMMUTABLE STRICT ;
 
 -- Clears the cache (and frees memory)
 CREATE FUNCTION kq_imcx_invalidate()
@@ -38,10 +35,3 @@ CREATE FUNCTION kq_add_days(date, int, text)
 AS 'MODULE_PATHNAME',
 'imcx_add_calendar_days_by_calendar_name'
     LANGUAGE C IMMUTABLE STRICT ;
-
--- -- This caches the specified calendar_id into memory
--- CREATE FUNCTION kq_load_calendar(int)
---     RETURNS TEXT
--- AS 'MODULE_PATHNAME',
--- ''
---     LANGUAGE C IMMUTABLE STRICT ;
