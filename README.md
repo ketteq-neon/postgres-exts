@@ -108,13 +108,13 @@ Is not recommended to give superuser powers to an account just to enable the ext
 After the extension is enabled the following functions will be available
 from the SQL-query interface:
 
-| Function                                                                     | Description                                                               |
-|------------------------------------------------------------------------------|---------------------------------------------------------------------------|
-| kq_imcx_info()                                                               | Returns information about the extension as records.                       |
-| kq_imcx_invalidate()                                                         | Invalidates the loaded cache.                                             |
-| kq_imcx_report(`showEntries bool`,`showPageMap bool `,`showSliceNames bool`) | List the cached calendars.                                                |   
-| kq_add_days_id(`input date`, `interval int`, `slicetype-id int`)             | Calculate the next or previous date using the calendar ID.                |
-| kq_add_days(`input date`, `interval int`, `slicetype-name text`)             | Same as the previous function but uses the calendar NAMEs instead of IDs. |
+| Function                                                                               | Description                                                               |
+|----------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| kq_calendar_cache_info()                                                               | Returns information about the extension as records.                       |
+| kq_invalidate_calendar_cache()                                                         | Invalidates the loaded cache.                                             |
+| kq_calendar_cache_report(`showEntries bool`,`showPageMap bool `,`showSliceNames bool`) | List the cached calendars.                                                |   
+| kq_add_days_by_id(`input date`, `interval int`, `slicetype-id int`)                    | Calculate the next or previous date using the calendar ID.                |
+| kq_add_days(`input date`, `interval int`, `slicetype-name text`)                       | Same as the previous function but uses the calendar NAMEs instead of IDs. |
 
 Any call to the extension functions will automatically load the slices in memory if not
 already loaded or failed in the `CREATE EXTENSION` time.
@@ -127,7 +127,7 @@ message is shown in the console: `INFO:  KetteQ In-Memory Calendar Extension Loa
 Show information about the extension status:
 
 ```
-# SELECT * FROM kq_imcx_info();
+# SELECT * FROM kq_calendar_cache_info();
 INFO:  KetteQ In-Memory Calendar Extension Loaded.
               property              | value 
 ------------------------------------+-------
@@ -141,7 +141,7 @@ INFO:  KetteQ In-Memory Calendar Extension Loaded.
 Show details about the cache:
 
 ```
-# SELECT * FROM kq_imcx_report(false, false);
+# SELECT * FROM kq_calendar_cache_report(false, false);
         property        |  value  
 ------------------------+---------
  Slices-Id Max          | 13
@@ -179,7 +179,7 @@ Invalidating the cache will clear memory and execute again the load queries. Aft
 the function is executed, a fresh cache is available.
 
 ```
-SELECT kq_imcx_invalidate();
+SELECT kq_invalidate_calendar_cache();
  kq_imcx_invalidate 
 --------------------
  Cache Invalidated.

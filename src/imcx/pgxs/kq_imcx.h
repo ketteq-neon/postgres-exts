@@ -26,7 +26,7 @@
 //
 PG_MODULE_MAGIC;
 
-extern bool loadingCache;
+//extern bool loadingCache;
 
 void _PG_init(void);
 void _PG_fini(void);

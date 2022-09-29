@@ -5,7 +5,7 @@
 #include "kq_imcx.h"
 #include "src/common/util.h"
 
-bool loadingCache = false;
+//bool loadingCache = false;
 uint64 calendars_entry_count = 0;
 
 typedef struct TupleData {
@@ -33,8 +33,6 @@ void _PG_fini(void) {
 }
 
 void load_all_slices() {
-    if (loadingCache) { return; }
-    loadingCache = true;
     // Vars
     int query_exec_ret;
     MemoryContext prev_ctx;
@@ -181,7 +179,6 @@ void load_all_slices() {
     elog(DEBUG1, "Q3: Cached %" PRIu64 " slices in total.", query_exec_rowcount);
     SPI_finish();
     cacheFilled = true;
-    loadingCache = false;
 }
 
 void add_row_to_tuple(
