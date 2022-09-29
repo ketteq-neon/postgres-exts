@@ -6,6 +6,10 @@
 #define KETTEQ_POSTGRESQL_EXTENSIONS_UTIL_H
 
 #include <stddef.h>
+#include <sys/types.h>
+
+char * convertIntToStr(int number);
+char * convertUIntToStr(uint number);
 
 // ptrdiff_t coutil_uint64_to_ptrdiff(unsigned long input); // To Be Deleted
 int coutil_binary_search(int arr[], int left, int right, int value);

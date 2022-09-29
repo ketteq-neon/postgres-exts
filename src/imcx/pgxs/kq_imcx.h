@@ -18,18 +18,21 @@
 #include <funcapi.h>
 // IMCX Includes
 #include "../src/calendar.h"
+#include "../src/common/util.h"
 //
 PG_MODULE_MAGIC;
+
+extern bool loadingCache;
 
 void _PG_init(void);
 void _PG_fini(void);
 void load_all_slices();
 
-Datum kq_imcx_info(PG_FUNCTION_ARGS);
-Datum kq_invalidate_cache(PG_FUNCTION_ARGS);
-Datum kq_report_cache(PG_FUNCTION_ARGS);
-Datum kq_add_calendar_days(PG_FUNCTION_ARGS);
-Datum kq_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS);
+Datum imcx_info(PG_FUNCTION_ARGS);
+Datum imcx_invalidate(PG_FUNCTION_ARGS);
+Datum imcx_report(PG_FUNCTION_ARGS);
+Datum imcx_add_calendar_days_by_id(PG_FUNCTION_ARGS);
+Datum imcx_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS);
 Datum kq_load_all_calendars(PG_FUNCTION_ARGS);
 
 #endif //KETTEQ_INMEMORYCALENDAR_EXTENSION_KQ_IMCX_H

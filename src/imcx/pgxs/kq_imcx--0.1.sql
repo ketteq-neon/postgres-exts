@@ -1,8 +1,8 @@
 -- Gives information about the extension
 CREATE FUNCTION kq_imcx_info()
-    RETURNS SETOF RECORD
-AS 'MODULE_PATHNAME', 'kq_imcx_info'
-    LANGUAGE C STRICT VOLATILE;
+    RETURNS TABLE ("property" text, "value" text)
+AS 'MODULE_PATHNAME', 'imcx_info'
+    LANGUAGE C VOLATILE STRICT;
 
 -- This caches all the calendars into memory
 -- CREATE FUNCTION kq_imcx_load()
@@ -15,28 +15,28 @@ AS 'MODULE_PATHNAME', 'kq_imcx_info'
 CREATE FUNCTION kq_imcx_invalidate()
     RETURNS TEXT
 AS 'MODULE_PATHNAME',
-    'kq_invalidate_cache'
+    'imcx_invalidate'
 LANGUAGE C IMMUTABLE STRICT;
 
 -- Displays as Log Messages the contents of the cache.
-CREATE FUNCTION kq_imcx_report(int, int, int)
-    RETURNS TEXT
+CREATE FUNCTION kq_imcx_report(boolean, boolean)
+    RETURNS TABLE ("property" text, "value" text)
 AS 'MODULE_PATHNAME',
-'kq_report_cache'
-    LANGUAGE C IMMUTABLE STRICT;
+'imcx_report'
+    LANGUAGE C VOLATILE STRICT;
 
 -- Calculates next date for the given days (selects calendar by ID).
-CREATE FUNCTION kq_imcx_add_days(date, int, int)
+CREATE FUNCTION kq_add_days_id(date, int, int)
     RETURNS DATE
 AS 'MODULE_PATHNAME',
-    'kq_add_calendar_days'
+    'imcx_add_calendar_days_by_id'
 LANGUAGE C IMMUTABLE STRICT ;
 
 -- Calculates next date for the given days (selects calendar by NAME).
-CREATE FUNCTION kq_imcx_add_days_name(date, int, text)
+CREATE FUNCTION kq_add_days(date, int, text)
     RETURNS DATE
 AS 'MODULE_PATHNAME',
-'kq_add_calendar_days_by_calendar_name'
+'imcx_add_calendar_days_by_calendar_name'
     LANGUAGE C IMMUTABLE STRICT ;
 
 -- -- This caches the specified calendar_id into memory

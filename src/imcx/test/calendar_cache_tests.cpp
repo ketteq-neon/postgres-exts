@@ -20,6 +20,7 @@ int fake_interval_max = 2;
 
 extern "C" {
     #include "../src/calendar.h"
+    #include "../src/common/util.h"
 }
 // Static Approach
 TEST(kQCalendarMathTest, StaticCalendarCacheInit) {
@@ -416,4 +417,28 @@ TEST(kQCalendarMathTest, CalendarInvalidate) {
     //
     int ret = cacheInvalidate();
     EXPECT_EQ(ret, 0);
+}
+
+TEST(kQCalendarConvertionTest, IntToStringConversion) {
+    int myNumber = 1005;
+    char * myNumberStr = convertIntToStr(myNumber);
+    EXPECT_STREQ(myNumberStr, "1005");
+    int myNumber2 = 10010;
+    char * myNumberStr2 = convertIntToStr(myNumber2);
+    EXPECT_STREQ(myNumberStr2, "10010");
+    // -- Free
+    free(myNumberStr);
+    free(myNumberStr2);
+}
+
+TEST(kQCalendarConvertionTest, UIntToStringConversion) {
+    uint myNumber = 1015;
+    char * myNumberStr = convertUIntToStr(myNumber);
+    EXPECT_STREQ(myNumberStr, "1015");
+    uint myNumber2 = 10012;
+    char * myNumberStr2 = convertUIntToStr(myNumber2);
+    EXPECT_STREQ(myNumberStr2, "10012");
+    // -- Free
+    free(myNumberStr);
+    free(myNumberStr2);
 }

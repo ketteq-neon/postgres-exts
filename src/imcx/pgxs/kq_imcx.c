@@ -4,6 +4,11 @@
  */
 
 #include "kq_imcx.h"
+#include "src/common/util.h"
+
+
+bool loadingCache = false;
+uint64 calendars_entry_count = 0;
 
 // Init of Extension
 
@@ -22,6 +27,8 @@ void _PG_fini(void)
 }
 
 void load_all_slices() {
+    if (loadingCache) { return; }
+    loadingCache = true;
     // Vars
     int query_exec_ret;
     MemoryContext prev_ctx;
@@ -35,7 +42,7 @@ void load_all_slices() {
     int i;
     // Query #1, Get MIN_ID and MAX_ID of Calendars
 //    char *sql_get_min_max = "select min(ce.calendar_id), max(ce.calendar_id) from calendar_entries ce;";
-    char *sql_get_min_max = "select min(s.id), max(s.id) from ketteq.slice s"; // 1 - 74079
+    char *sql_get_min_max = "select min(s.id), max(s.id) from ketteq.slice_type s"; // 1 - 74079
     // Query #2, Get Calendar's Entries Count and Names
 //    char *sql_get_entries_count_per_calendar_id = "select ce.calendar_id, count(*), (select c.\"name\" "
 //                                                  "from calendar c where c.id = ce.calendar_id) \"name\" from "
@@ -84,7 +91,7 @@ void load_all_slices() {
                           spi_tuple_desc,
                           2,
                           &isNull));
-    elog(DEBUG1, "Q1: SliceType-Id: Min: %" PRId64 ", Max: %" PRId64, min_value, max_value);
+    elog(DEBUG1, "Q1: Min: %" PRId64 ", Max: %" PRId64, min_value, max_value);
     // Init the Struct's Cache
     prev_ctx = MemoryContextSwitchTo(TopMemoryContext);
     cacheInitCalendars(min_value, (long) max_value);
@@ -121,6 +128,7 @@ void load_all_slices() {
                         3
                 )
         );
+        calendars_entry_count += calendar_entry_count;
         elog(DEBUG1, "Q2 (Cursor): Got: SliceTypeName: %s, SliceType: %" PRIu64 ", Entries: %" PRIu64,
              calendar_name,
              calendar_id, calendar_entry_count);
@@ -179,103 +187,213 @@ void load_all_slices() {
     elog(DEBUG1, "Q3: Cached %" PRIu64 " slices in total.", query_exec_rowcount);
     SPI_finish();
     cacheFilled = true;
+    loadingCache = false;
+}
+
+void add_row_to_tuple(
+        AttInMetadata *attinmeta,
+        Tuplestorestate  *tuplestore,
+        char * prop, char * value) {
+    HeapTuple tuple;
+    char * values[2];
+    values[0] = prop; values[1] = value;
+    tuple = BuildTupleFromCStrings(attinmeta, values);
+    tuplestore_puttuple(tuplestore, tuple);
 }
 
 // TODO
-PG_FUNCTION_INFO_V1(kq_imcx_info);
-Datum kq_imcx_info(PG_FUNCTION_ARGS) {
-    ReturnSetInfo   *pReturnSetInfo = (ReturnSetInfo *) fcinfo->resultinfo;
-    TupleDesc	    tupleDesc;
-    Tuplestorestate *pTuplestorestate;
-    Datum           values[2];
-    bool            nulls[2] = {0};
-    //
-    if (get_call_result_type(fcinfo, NULL, &tupleDesc) != TYPEFUNC_COMPOSITE)
-        elog(ERROR, "Invalid Return Type");
-    pTuplestorestate = tuplestore_begin_heap(true, false, work_mem);
-    values[0] = CStringGetTextDatum("Version");
-    values[1] = CStringGetTextDatum(CMAKE_VERSION);
-    pReturnSetInfo->returnMode = SFRM_Materialize;
-    pReturnSetInfo->setResult = pTuplestorestate;
-    pReturnSetInfo->setDesc = tupleDesc;
-    tuplestore_putvalues(pTuplestorestate, tupleDesc, values, nulls);
-    tuplestore_donestoring(pTuplestorestate);
-    tuplestore_donestoring(pTuplestorestate);
+PG_FUNCTION_INFO_V1(imcx_info);
+Datum imcx_info(PG_FUNCTION_ARGS) {
+    ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
+    Tuplestorestate  *tuplestore;
+    AttInMetadata *attinmeta;
+    MemoryContext queryContext;
+    MemoryContext oldContext;
+    TupleDesc	tupleDesc;
+
+    char*           values[2];
+    bool            nulls[2];
+
+    /* check to see if caller supports us returning a tuplestore */
+    if (rsinfo == NULL || !IsA(rsinfo, ReturnSetInfo))
+        ereport(ERROR,
+                (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+                        errmsg("set-valued function called in context that cannot accept a set")));
+    if (!(rsinfo->allowedModes & SFRM_Materialize))
+        ereport(ERROR,
+                (errcode(ERRCODE_SYNTAX_ERROR),
+                        errmsg("materialize mode required, but it is not allowed in this context")));
+    /* Build tuplestore to hold the result rows */
+    oldContext = MemoryContextSwitchTo(rsinfo->econtext->ecxt_per_query_memory); // Switch To Per Query Context
+
+    tupleDesc = CreateTemplateTupleDesc(2);
+    TupleDescInitEntry(tupleDesc,
+                       (AttrNumber) 1, "property", TEXTOID, -1, 0);
+    TupleDescInitEntry(tupleDesc,
+                       (AttrNumber) 2, "value", TEXTOID, -1, 0);
+
+    tuplestore = tuplestore_begin_heap(true, false, work_mem); // Create TupleStore
+    rsinfo->returnMode = SFRM_Materialize;
+    rsinfo->setResult = tuplestore;
+    rsinfo->setDesc = tupleDesc;
+    MemoryContextSwitchTo(oldContext); // Switch back to previous context
+    attinmeta = TupleDescGetAttInMetadata(tupleDesc);
+
+    add_row_to_tuple(attinmeta, tuplestore,
+                     "Version", CMAKE_VERSION);
+    add_row_to_tuple(attinmeta, tuplestore,
+                     "Cache Available", cacheFilled ? "Yes" : "No");
+    add_row_to_tuple(attinmeta, tuplestore,
+                     "Slice Cache Size (SliceType Count)", convertUIntToStr(cacheCalendarCount));
+    add_row_to_tuple(attinmeta, tuplestore,
+                     "Entry Cache Size (Slices)", convertUIntToStr(calendars_entry_count));
+
     return (Datum) 0;
 }
 
-PG_FUNCTION_INFO_V1(kq_invalidate_cache);
-Datum kq_invalidate_cache(PG_FUNCTION_ARGS) {
+PG_FUNCTION_INFO_V1(imcx_invalidate);
+Datum imcx_invalidate(PG_FUNCTION_ARGS) {
     MemoryContext old_context = MemoryContextSwitchTo(TopMemoryContext);
     int ret = cacheInvalidate();
     MemoryContextSwitchTo(old_context);
     if (ret == 0) {
-        return PointerGetDatum(cstring_to_text("Cache Cleared."));
+        calendars_entry_count = 0;
+        load_all_slices();
+        PG_RETURN_CSTRING("Cache Invalidated.");
+        //return CStringGetDatum("Cache Cleared.");
     }
-    return PointerGetDatum(cstring_to_text("Cache Not Exists."));
+    PG_RETURN_CSTRING("Error Invalidating the Cache.");
+    // return CStringGetDatum("Cache Not Exists.");
 }
+
+typedef struct TupleData {
+    AttInMetadata *attinmeta;
+    Tuplestorestate  *tuplestore;
+} TupleData;
+
+
 
 void report_names(gpointer _key, gpointer _value, gpointer _user_data) {
     char * key = _key;
     char * value = _value;
-    elog(INFO, "SliceType-Name: '%s' -> SliceTypeId: '%s'", key, value);
+    TupleData * tupleData =  (TupleData *) _user_data;
+    add_row_to_tuple(tupleData->attinmeta, tupleData->tuplestore,
+                     key,
+                     value);
 }
 
-int pg_calcache_report(int showEntries, int showPageMapEntries, int showNames) {
+typedef struct GetNameData {
+    char * searchId;
+    char * name;
+} GetNameData;
+
+void get_name(gpointer _key, gpointer _value, gpointer _user_data) {
+    char * key = _key;
+    char * value = _value;
+    GetNameData * user = _user_data;
+    if (strcmp(user->searchId, value) == 0) {
+        user->name = key;
+    }
+}
+
+int pg_calcache_report(int showEntries, int showPageMapEntries, FunctionCallInfo fcinfo) {
     if (!cacheFilled) {
         return -1;
     }
-    elog(INFO, "Slices-Id Max %" PRIu64, cacheCalendarCount);
+    ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
+    Tuplestorestate  *tuplestore;
+    AttInMetadata *attinmeta;
+    MemoryContext queryContext;
+    MemoryContext oldContext;
+    TupleDesc	tupleDesc;
+    char*           values[2];
+    bool            nulls[2];
+    // --
+    /* check to see if caller supports us returning a tuplestore */
+    if (rsinfo == NULL || !IsA(rsinfo, ReturnSetInfo))
+        ereport(ERROR,
+                (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+                        errmsg("set-valued function called in context that cannot accept a set")));
+    if (!(rsinfo->allowedModes & SFRM_Materialize))
+        ereport(ERROR,
+                (errcode(ERRCODE_SYNTAX_ERROR),
+                        errmsg("materialize mode required, but it is not allowed in this context")));
+    /* Build tuplestore to hold the result rows */
+    oldContext = MemoryContextSwitchTo(rsinfo->econtext->ecxt_per_query_memory); // Switch To Per Query Context
+
+    tupleDesc = CreateTemplateTupleDesc(2);
+    TupleDescInitEntry(tupleDesc,
+                       (AttrNumber) 1, "property", TEXTOID, -1, 0);
+    TupleDescInitEntry(tupleDesc,
+                       (AttrNumber) 2, "value", TEXTOID, -1, 0);
+
+    tuplestore = tuplestore_begin_heap(true, false, work_mem); // Create TupleStore
+    rsinfo->returnMode = SFRM_Materialize;
+    rsinfo->setResult = tuplestore;
+    rsinfo->setDesc = tupleDesc;
+    MemoryContextSwitchTo(oldContext); // Switch back to previous context
+    attinmeta = TupleDescGetAttInMetadata(tupleDesc);
+    // --
+    add_row_to_tuple(attinmeta, tuplestore,
+                     "Slices-Id Max", convertUIntToStr(cacheCalendarCount));
+    add_row_to_tuple(attinmeta, tuplestore,
+                     "Cache-Calendars Size", convertUIntToStr(sizeof(&cacheCalendars)));
+    // --
+    // elog(INFO, "Slices-Id Max %" PRIu64, cacheCalendarCount);
+    int noCalendarIdCounter = 0;
     for (uint64 i = 0; i < cacheCalendarCount; i++) {
         InMemCalendar curr_calendar = cacheCalendars[i];
         if (curr_calendar.calendar_id != 0) {
-//            char * calendar_name;
-//            int name_found = cacheGetCalendarName(curr_calendar, calendar_name);
-//            if (name_found != 0) {
-//                elog(ERROR, "Slice-Name cannot be obtained.");
-//            }
-            elog(INFO, "SliceType-Id: %d, "
-                       "Entries: %d, "
-                       "Page Map Size: %d, "
-                       "Page Size: %d",
-                 curr_calendar.calendar_id,
-                 curr_calendar.dates_size,
-                 curr_calendar.page_map_size,
-                 curr_calendar.page_size
-                 );
-//            free(calendar_name);
+            add_row_to_tuple(attinmeta, tuplestore,
+                             "SliceType-Id", convertUIntToStr(curr_calendar.calendar_id));
+            // -- Get The Name
+            GetNameData getNameData; getNameData.searchId = convertUIntToStr(curr_calendar.calendar_id);
+            g_hash_table_foreach(cacheCalendarNameHashTable, get_name, &getNameData);
+            // --
+            add_row_to_tuple(attinmeta, tuplestore,
+                             "   Name", getNameData.name);
+            add_row_to_tuple(attinmeta, tuplestore,
+                             "   Entries", convertUIntToStr(curr_calendar.dates_size));
+            add_row_to_tuple(attinmeta, tuplestore,
+                             "   Page Map Size", convertUIntToStr(curr_calendar.page_map_size));
+            add_row_to_tuple(attinmeta, tuplestore,
+                             "   Page Size", convertUIntToStr(curr_calendar.page_size));
             if (showEntries)
                 for (uint32 j = 0; j < curr_calendar.dates_size; j++) {
                     elog(INFO, "Entry[%d]: %d", j, curr_calendar.dates[j]);
+                    add_row_to_tuple(attinmeta, tuplestore,
+                                     "   Entry",
+                                     convertUIntToStr(curr_calendar.dates[j]));
                 }
             if (showPageMapEntries)
                 for (uint32 j = 0; j < curr_calendar.page_map_size; j++) {
                     elog(INFO, "PageMap Entry[%d]: %d", j, curr_calendar.page_map[j]);
+                    add_row_to_tuple(attinmeta, tuplestore,
+                                     "   PageMap Entry",
+                                     convertUIntToStr(curr_calendar.page_map[j]));
                 }
+        } else {
+            noCalendarIdCounter++;
         }
     }
-    if (showNames)
-        g_hash_table_foreach(cacheCalendarNameHashTable, report_names, NULL);
+    add_row_to_tuple(attinmeta, tuplestore,
+                     "Missing Slices (id==0)",
+                     convertIntToStr(noCalendarIdCounter));
     return 0;
 }
 
-PG_FUNCTION_INFO_V1(kq_report_cache);
-Datum kq_report_cache(PG_FUNCTION_ARGS) {
+PG_FUNCTION_INFO_V1(imcx_report);
+Datum imcx_report(PG_FUNCTION_ARGS) {
     int32 showEntries = PG_GETARG_INT32(0);
     int32 showPageMapEntries = PG_GETARG_INT32(1);
-    int32 showNames = PG_GETARG_INT32(2);
-    int ret = pg_calcache_report(showEntries, showPageMapEntries, showNames);
-    if (ret == 0) {
-        return PointerGetDatum(cstring_to_text("OK."));
-    } else {
-        return PointerGetDatum(cstring_to_text("Cache Not Exists or Empty."));
-    }
+    pg_calcache_report(showEntries, showPageMapEntries, fcinfo);
+    return (Datum) 0;
 }
 
 
-PG_FUNCTION_INFO_V1(kq_add_calendar_days);
+PG_FUNCTION_INFO_V1(imcx_add_calendar_days_by_id);
 Datum
-kq_add_calendar_days(PG_FUNCTION_ARGS) {
+imcx_add_calendar_days_by_id(PG_FUNCTION_ARGS) {
     int32 date = PG_GETARG_INT32(0);
     int32 calendar_interval = PG_GETARG_INT32(1);
     int32 calendar_id = PG_GETARG_INT32(2);
@@ -299,9 +417,9 @@ kq_add_calendar_days(PG_FUNCTION_ARGS) {
     PG_RETURN_DATEADT(new_date);
 }
 
-PG_FUNCTION_INFO_V1(kq_add_calendar_days_by_calendar_name);
+PG_FUNCTION_INFO_V1(imcx_add_calendar_days_by_calendar_name);
 Datum
-kq_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS) {
+imcx_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS) {
     int32 date = PG_GETARG_INT32(0);
     int32 calendar_interval = PG_GETARG_INT32(1);
     text * calendar_name = PG_GETARG_TEXT_P(2);
@@ -330,13 +448,3 @@ kq_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS) {
     //
     PG_RETURN_DATEADT(new_date);
 }
-
-//PG_FUNCTION_INFO_V1(kq_load_all_calendars);
-//Datum
-//kq_load_all_calendars(PG_FUNCTION_ARGS) {
-//    if (cacheFilled) {
-//        return kq_report_cache(NULL);
-//    }
-//    load_all_slices();
-//    PG_RETURN_TEXT_P(cstring_to_text("Done."));
-//}

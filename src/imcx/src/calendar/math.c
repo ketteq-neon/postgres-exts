@@ -42,7 +42,7 @@ int calmath_get_closest_index_from_left(int date_adt, InMemCalendar calendar) {
     //
     if (page_map_index >= calendar.page_map_size) {
         int ret_val = -1 * ((int) calendar.dates_size) - 1;
-        // TODO: Analyze with -2
+
         return ret_val;
     } else if (page_map_index < 0) {
         int ret_val = -1;
@@ -51,13 +51,7 @@ int calmath_get_closest_index_from_left(int date_adt, InMemCalendar calendar) {
     //
     int inclusive_start_index = calendar.page_map[page_map_index];
     int exclusive_end_index = page_map_index < calendar.page_map_size - 1 ? calendar.page_map[page_map_index + 1] : calendar.dates_size;
-    // printf("Left: %d, Right: %d\n",
-    //       inclusive_start_index, exclusive_end_index);
-
-    // Without inclusive limits
-    // return coutil_left_binary_search(calendar.dates, 0, calendar.dates_size, date_adt);
-
-    // With the inclusive limits, faster
+    //
     return coutil_left_binary_search(calendar.dates,
                                      inclusive_start_index,
                                      exclusive_end_index,

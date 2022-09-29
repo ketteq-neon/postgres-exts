@@ -5,7 +5,24 @@
 #include "util.h"
 
 #include <ctype.h>
-#include "inttypes.h"
+#include <stdio.h>
+#include <malloc.h>
+
+char * convertIntToStr(int number) {
+    char * returnStr;
+    int number_len = snprintf(NULL, 0, "%d", number);
+    returnStr = malloc((number_len + 1) * sizeof (char));
+    snprintf(returnStr, number_len+1, "%d", number);
+    return returnStr;
+}
+
+char * convertUIntToStr(uint number) {
+    char * returnStr;
+    int number_len = snprintf(NULL, 0, "%d", number);
+    returnStr = malloc((number_len + 1) * sizeof (char));
+    snprintf(returnStr, number_len+1, "%d", number);
+    return returnStr;
+}
 
 //ptrdiff_t coutil_uint64_to_ptrdiff(unsigned long input) {
 //    if (input > PTRDIFF_MAX) {

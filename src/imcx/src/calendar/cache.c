@@ -35,7 +35,8 @@ int cacheInitCalendars(long min_calendar_id, long max_calendar_id) {
     //
     unsigned long calendar_count = max_calendar_id - min_calendar_id + 1;
     //
-    cacheCalendars = malloc(calendar_count * sizeof(struct InMemCalendar));
+//    cacheCalendars = malloc(calendar_count * sizeof(struct InMemCalendar));
+    cacheCalendars = (InMemCalendar*) calloc(calendar_count, sizeof(InMemCalendar));
     if (cacheCalendars == NULL) {
         // This happens when the OS can't give us that much memory.
         return -1;
@@ -68,20 +69,12 @@ static void stdc_display_hash(gpointer key, gpointer value, gpointer user_data) 
     printf("Key: %s, Value: %s", (char*) key, (char*) value);
 }
 
-void calcache_report_calendar_names_stdc() {
-    g_hash_table_foreach(cacheCalendarNameHashTable, stdc_display_hash, NULL);
-}
-
-
-void calcache_report_calendar_names(GHFunc display_func) {
-    g_hash_table_foreach(cacheCalendarNameHashTable, display_func, NULL);
-}
-
 void cacheInitAddCalendarName(InMemCalendar calendar, char *calendar_name) {
     // Convert Int to Str
     int num_len = snprintf(NULL, 0, "%d", calendar.calendar_id);
     char * id_str = malloc((num_len + 1) * sizeof(char));
     snprintf(id_str, num_len+1, "%d", calendar.calendar_id);
+//    char * id_str = convertUIntToStr(calendar.calendar_id);
     //
     // TODO: Check how to save the id value as Int and not Str (char*) -> similar to IntHashMap
     coutil_str_to_lowercase(calendar_name);
@@ -99,25 +92,12 @@ void findCalendarName(gpointer _key, gpointer _value, gpointer _user_data) {
     }
 }
 
-// TODO: Requires Fixing, Is Always returning NULL
-int cacheGetCalendarName(InMemCalendar calendar, char *calendar_name) {
-    // Convert Int to Str
-    int num_len = snprintf(NULL, 0, "%d", calendar.calendar_id); // Gets the size of chars rq. to rep. the number
-    char * id_str = malloc((num_len + 1) * sizeof(char));
-    snprintf(id_str, num_len+1, "%d", calendar.calendar_id); // Do the actual conversion
-    // Find the Name
-    g_hash_table_foreach(cacheCalendarNameHashTable, findCalendarName, id_str);
-    // Copy to Output Arg
-    calendar_name = malloc(strlen(cacheCalendarFindCalendarName));
-    strcpy(calendar_name, cacheCalendarFindCalendarName);
-    //
-    if (strlen(calendar_name) > 0) {
-        return 0;
-    } else {
-        return -1;
-    }
-}
-
+/**
+ * Gets the calendar by its given name.
+ * @param calendar_name pointer to string containing the calendar name
+ * @param calendar pointer to calendar (found calendar will be pointed here)
+ * @return 0 = SUCCESS, -1 = ERROR
+ */
 int cacheGetCalendarByName(char* calendar_name, InMemCalendar * calendar) {
     coutil_str_to_lowercase(calendar_name);
     _Bool found = g_hash_table_contains(cacheCalendarNameHashTable, calendar_name);
@@ -135,9 +115,9 @@ int cacheGetCalendarByName(char* calendar_name, InMemCalendar * calendar) {
 }
 
 /**
- * This INIT will calculate and set the page size for the given calendar pointer.
- * @param calendar
- * @return
+ * Calculates and sets the page size for the given calendar pointer
+ * @param calendar pointer to calendar
+ * @return 0 = SUCCESS, -1 = ERROR
  */
 int cacheInitPageSize(InMemCalendar *calendar) {
     int last_date = calendar->dates[calendar->dates_size - 1];
@@ -174,13 +154,14 @@ int cacheInitPageSize(InMemCalendar *calendar) {
 }
 
 /**
- * Adds (or subtracts) intervals of the first entry where the given date is located.
- * @param input_date
- * @param interval
- * @param calendar
- * @param first_date_idx
- * @param result_date_idx
- * @return
+ * Main Extension Function
+ * Adds (or subtracts) intervals of the given date based on the given calendar type (monthly, weekly, etc)
+ * @param input_date input date in DateADT int representation, can be negative
+ * @param interval interval to calculate, can be negative
+ * @param calendar pointer to calendar to use as database
+ * @param first_date_idx pointer to the first date index (NULLABLE)
+ * @param result_date_idx pointer to the result date index (NULLABLE)
+ * @return RESULT DATE = SUCCESS, INT32_MAX = Out of bounds
  */
 int cacheAddCalendarDays(
         int input_date,

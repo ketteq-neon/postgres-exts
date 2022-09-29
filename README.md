@@ -47,15 +47,9 @@ hosts is not supported.
 
 # Extensions And Features
 
-| Extension Name                       | Create Extension Name | Description                                                          |
-|--------------------------------------|-----------------------|----------------------------------------------------------------------|
-| In-Memory Calendar Extension (IMCX)  | `kq_imcx`             | Loads slices into memory and provides calendar calculation functions |
-
-## In-Memory Calendar Extension (IMCX)
-
-- Uses GHashTable to store slices cache in memory.
-- Uses the PostgreSQL Server's memory.
-- Provides very fast calendar calculation functions.
+| Extension Name                       | Create Extension Name | Features                                                                                                                                                 |
+|--------------------------------------|-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| In-Memory Calendar Extension (IMCX)  | `kq_imcx`             | - Uses GHashTable to store slices cache in memory.<br/> - Uses the PostgreSQL Server's memory.<br/> - Provides very fast calendar calculation functions. |
 
 # Installation
 
@@ -114,25 +108,109 @@ Is not recommended to give superuser powers to an account just to enable the ext
 After the extension is enabled the following functions will be available
 from the SQL-query interface:
 
-| Function                                                                   | Description                                                               |
-|----------------------------------------------------------------------------|---------------------------------------------------------------------------|
-| kq_imcx_info()                                                             | Returns information about the extension as records.                       |
-| kq_imcx_invalidate()                                                       | Invalidates the loaded cache.                                             |
-| kq_imcx_report(`showEntries int`,`showPageMap int `,`showSliceNames int`)  | List the cached calendars.                                                |   
-| kq_imcx_add_days(`input date`, `interval int`, `slicetype-id int`)         | Calculate the next or previous date using the calendar ID.                |
-| kq_imcx_add_days_name(`input date`, `interval int`, `slicetype-name text`) | Same as the previous function but uses the calendar NAMEs instead of IDs. |
+| Function                                                                     | Description                                                               |
+|------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| kq_imcx_info()                                                               | Returns information about the extension as records.                       |
+| kq_imcx_invalidate()                                                         | Invalidates the loaded cache.                                             |
+| kq_imcx_report(`showEntries bool`,`showPageMap bool `,`showSliceNames bool`) | List the cached calendars.                                                |   
+| kq_add_days_id(`input date`, `interval int`, `slicetype-id int`)             | Calculate the next or previous date using the calendar ID.                |
+| kq_add_days(`input date`, `interval int`, `slicetype-name text`)             | Same as the previous function but uses the calendar NAMEs instead of IDs. |
 
+Any call to the extension functions will automatically load the slices in memory if not
+already loaded or failed in the `CREATE EXTENSION` time.
+
+### Examples
+
+When the extension is successfully loaded and slices are in memory an information
+message is shown in the console: `INFO:  KetteQ In-Memory Calendar Extension Loaded.`.
+
+Show information about the extension status:
+
+```
+# SELECT * FROM kq_imcx_info();
+INFO:  KetteQ In-Memory Calendar Extension Loaded.
+              property              | value 
+------------------------------------+-------
+ Version                            | 0.0.0
+ Cache Available                    | Yes
+ Slice Cache Size (SliceType Count) | 13
+ Entry Cache Size (Slices)          | 16510
+(4 rows)
+```
+
+Show details about the cache:
+
+```
+# SELECT * FROM kq_imcx_report(false, false);
+        property        |  value  
+------------------------+---------
+ Slices-Id Max          | 13
+ Cache-Calendars Size   | 8
+ SliceType-Id           | 1
+    Name                | week
+    Entries             | 1983
+    Page Map Size       | 868
+    Page Size           | 16
+ SliceType-Id           | 2
+    Name                | month
+    Entries             | 456
+    Page Map Size       | 434
+    Page Size           | 32
+ SliceType-Id           | 3
+    Name                | quarter
+    Entries             | 152
+    Page Map Size       | 432
+    Page Size           | 32
+ SliceType-Id           | 4
+    Name                | year
+    Entries             | 38
+    Page Map Size       | 423
+    Page Size           | 32
+ SliceType-Id           | 13
+    Name                | day
+    Entries             | 13881
+    Page Map Size       | 869
+    Page Size           | 16
+ Missing Slices (id==0) | 8
+(28 rows)
+```
+
+Invalidating the cache will clear memory and execute again the load queries. After
+the function is executed, a fresh cache is available.
+
+```
+SELECT kq_imcx_invalidate();
+ kq_imcx_invalidate 
+--------------------
+ Cache Invalidated.
+(1 row)
+```
+
+When extension is ready and slices are loaded in memory, calculation functions can
+be used.
+
+Add an interval to a date that corresponds to the quarter calendar (Slice Type), the
+date must be in a PostgreSQL-supported date format.
+
+```
+# SELECT kq_add_days('2008-01-15', 1, 'quarter');
+ kq_add_days 
+-------------
+ 2008-04-01
+(1 row)
+```
+
+The output of this function can be used inside a normal SQL query:
+
+```
+# SELECT 1 id, '2008-01-15' old_date, kq_add_days('2008-01-15', 1, 'quarter') new_date;
+ id |  old_date  |  new_date  
+----+------------+------------
+  1 | 2008-01-15 | 2008-04-01
+(1 row)
+```
 
 # Architecture
 
 Postgres' extensions are handled by a "bridge" (or main) C file with functions that must be mapped into the 
 "extension mapping" SQL file that will make these C functions available from the SQL query interface.
-
-## Example (In-Memory Calendar Extension)
-
-| File                           | Description                       |
-|--------------------------------|-----------------------------------|
-| src/imcx/pgxs/kq_imcx.c        | Extension C Bridge (Main)         |
-| src/imcx/pgxs/kq_imcx--0.1.sql | PostgreSQL Extension Mapping File |
-| src/imcx/src/                  | Extension C Source Files          |
-
