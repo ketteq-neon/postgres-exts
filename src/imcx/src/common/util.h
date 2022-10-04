@@ -12,6 +12,15 @@ char * convert_int_to_str(int number);
 char * convert_long_to_str(long number);
 char * convert_u_long_to_str(ulong number);
 char * convert_u_int_to_str(uint number);
-char * str_to_lowercase(const char * string);
+/**
+ * Copies the string and replaces the chars of the given pointer with their corresponding lowercase char.
+ * @param string
+ */
+char * str_to_lowercase(char * string);
+/**
+ * Replaces the chars of the given pointer with their corresponding lowercase char.
+ * @param string
+ */
+void str_to_lowercase_self (char *string);
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_UTIL_H

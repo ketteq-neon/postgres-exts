@@ -66,13 +66,13 @@ char *convert_u_int_to_str (uint number)
   return returnStr;
 }
 
-/**
- * Replaces the chars of the given pointer with their corresponding lowercase char.
- * @param string
- */
-char *str_to_lowercase (const char *string)
+char *str_to_lowercase (char *string)
 {
   char *string_copy = strdup (string);
   for (; *string_copy; ++string_copy) *string_copy = (char)tolower (*string_copy);
   return string_copy;
+}
+
+void str_to_lowercase_self (char *string) {
+  for (; *string; ++string) *string = (char)tolower (*string);
 }

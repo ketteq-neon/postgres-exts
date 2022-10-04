@@ -67,11 +67,11 @@ void load_cache_concrete ()
   LWLockAcquire (&imcx_shared_memory->lock, LW_EXCLUSIVE);
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Load Lock Acquired."));
   // Vars
-  int query_exec_ret;
+  // int query_exec_ret;
   uint64 prev_calendar_id = 0; // Previous Calendar ID
   uint64 entry_count = 0; // Entry Counter
   // Row Control
-  uint64 query_exec_rowcount;
+  // uint64 query_exec_rowcount;
   bool entry_is_null; // Pointer to boolean, TRUE if the last entry was NULL
   // Query #1, Get MIN_ID and MAX_ID of Calendars
   char const *sql_get_min_max = "select min(s.id), max(s.id) from ketteq.slice_type s"; // 1 - 74079
@@ -87,36 +87,31 @@ void load_cache_concrete ()
 								"order by s.slice_type_id asc, "
 								"s.start_on asc;";
   // SPI
-  SPITupleTable *spi_tuple_table;
-  TupleDesc spi_tuple_desc;
   // Connect to SPI
-  if ((query_exec_ret = SPI_connect ()) < 0)
+  int spi_connect_result = 0;
+  if ((spi_connect_result = SPI_connect ()) < 0)
 	{
-	  ereport(ERROR, errmsg ("SPI_connect returned %d", query_exec_ret));
+	  ereport(ERROR, errmsg ("SPI_connect returned %d", spi_connect_result));
 	}
   // Execute Q1, get the min and max calendar_id's
-  query_exec_ret = SPI_execute (sql_get_min_max, true, 0);
-  query_exec_rowcount = SPI_processed;
   // Check results
-  if (query_exec_ret != SPI_OK_SELECT || query_exec_rowcount == 0)
+  if (SPI_execute (sql_get_min_max, true, 0) != SPI_OK_SELECT || SPI_processed == 0)
 	{
 	  SPI_finish ();
 	  ereport(ERROR, errmsg ("No calendars."));
 	}
   //
   // Get the Data and Descriptor
-  spi_tuple_table = SPI_tuptable;
-  spi_tuple_desc = spi_tuple_table->tupdesc;
-  HeapTuple min_max_tuple = spi_tuple_table->vals[0];
+  HeapTuple min_max_tuple = SPI_tuptable->vals[0];
   //
   uint64 min_value = DatumGetUInt64(
 	  SPI_getbinval (min_max_tuple,
-					 spi_tuple_desc,
+					 SPI_tuptable->tupdesc,
 					 1,
 					 &entry_is_null));
   uint64 max_value = DatumGetUInt64(
 	  SPI_getbinval (min_max_tuple,
-					 spi_tuple_desc,
+					 SPI_tuptable->tupdesc,
 					 2,
 					 &entry_is_null));
   // ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Q1: Min: %" PRId64 ", Max: %" PRId64, min_value, max_value));
@@ -129,7 +124,7 @@ void load_cache_concrete ()
 	  "Memory Allocated (Q1), Min-Value: '%ld' Max-Value: '%ld'",
 	  min_value,
 	  max_value
-	  ));
+  ));
   // Init the Structs date property with the count of the entries
   // query_exec_ret = SPI_execute (sql_get_entries_count_per_calendar_id, true, 0);
   // query_exec_rowcount = SPI_processed;
@@ -141,26 +136,26 @@ void load_cache_concrete ()
 	}
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Q2: Got %" PRIu64 " SliceTypes.", SPI_processed));
   //
-  spi_tuple_table = SPI_tuptable;
-  spi_tuple_desc = spi_tuple_table->tupdesc;
+//  spi_tuple_table = SPI_tuptable;
+//  spi_tuple_desc = spi_tuple_table->tupdesc;
   // Allocate Calendars and Calendar's Names Map
   for (uint64 row_counter = 0; row_counter < SPI_processed; row_counter++)
 	{
-	  HeapTuple cal_entries_count_tuple = spi_tuple_table->vals[row_counter];
+	  HeapTuple cal_entries_count_tuple = SPI_tuptable->vals[row_counter];
 	  uint64 calendar_id = DatumGetUInt64(
 		  SPI_getbinval (cal_entries_count_tuple,
-						 spi_tuple_desc,
+						 SPI_tuptable->tupdesc,
 						 1,
 						 &entry_is_null));
 	  uint64 calendar_entry_count = DatumGetUInt64(
 		  SPI_getbinval (cal_entries_count_tuple,
-						 spi_tuple_desc,
+						 SPI_tuptable->tupdesc,
 						 2,
 						 &entry_is_null));
-	  const char *calendar_name = DatumGetCString(
+	  char *calendar_name = DatumGetCString(
 		  SPI_getvalue (
 			  cal_entries_count_tuple,
-			  spi_tuple_desc,
+			  SPI_tuptable->tupdesc,
 			  3
 		  )
 	  );
@@ -176,41 +171,41 @@ void load_cache_concrete ()
 	  imcx_shared_memory->imcx->calendars[calendar_id - 1].calendar_id = calendar_id;
 	  init_calendar (
 		  imcx_shared_memory->imcx,
-		  calendar_id - 1,
+		  calendar_id,
 		  calendar_entry_count
 	  );
 	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg (
-		  "Calendar Initialized, Index: '%ld', Entry count: '%ld'",
+		  "Calendar Initialized, Index: '%ld', ID: '%ld', Entry count: '%ld'",
 		  calendar_id - 1,
+		  calendar_id,
 		  calendar_entry_count
 	  ));
 	  // Add The Calendar Name
 	  add_calendar_name (imcx_shared_memory->imcx, calendar_id - 1, calendar_name);
 	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Calendar Name '%s' Set", calendar_name));
 	}
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Executing Q3"));
   // -> Exec Q3
-  query_exec_ret = SPI_execute (sql_get_entries, true, 0);
-  query_exec_rowcount = SPI_processed;
   // Check Results
-  if (query_exec_ret != SPI_OK_SELECT || query_exec_rowcount == 0)
+  if (SPI_execute (sql_get_entries, true, 0) != SPI_OK_SELECT || SPI_processed == 0)
 	{
 	  SPI_finish ();
 	  ereport(ERROR, errmsg ("No calendar entries."));
 	}
-  for (uint64 row_counter = 0; row_counter < query_exec_rowcount; row_counter++)
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Q3: RowCount: '%ld'", SPI_processed));
+  for (uint64 row_counter = 0; row_counter < SPI_processed; row_counter++)
 	{
 	  HeapTuple cal_entries_tuple = SPI_tuptable->vals[row_counter];
 	  uint64 calendar_id = DatumGetUInt64(
 		  SPI_getbinval (cal_entries_tuple,
-						 spi_tuple_table->tupdesc,
+						 SPI_tuptable->tupdesc,
 						 1,
 						 &entry_is_null));
 	  int32 calendar_entry = DatumGetDateADT(
 		  SPI_getbinval (cal_entries_tuple,
-						 spi_tuple_table->tupdesc,
+						 SPI_tuptable->tupdesc,
 						 2,
 						 &entry_is_null));
-
 	  uint64 calendar_index = calendar_id - 1;
 
 	  if (prev_calendar_id != calendar_id)
@@ -218,14 +213,24 @@ void load_cache_concrete ()
 		  prev_calendar_id = calendar_id;
 		  entry_count = 0;
 		}
-	  imcx_shared_memory->imcx->calendars[calendar_index].dates[entry_count++] = calendar_entry;
+
+	  ereport(DEBUG2, errmsg (
+		  "Calendar Id '%ld', Calendar Entry (DateADT): '%d', Calendar Index: '%ld', Entry Count '%ld'",
+		  calendar_id,
+		  calendar_entry,
+		  calendar_index,
+		  entry_count
+	  ));
+
+	  imcx_shared_memory->imcx->calendars[calendar_index].dates[entry_count] = calendar_entry;
+	  entry_count++;
 	  if (imcx_shared_memory->imcx->calendars[calendar_index].dates_size == entry_count)
 		{
 		  // entry copy complete, calculate page size
 		  init_page_size (&imcx_shared_memory->imcx->calendars[calendar_index]);
 		}
 	}
-  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Q3: Cached %" PRIu64 " slices in total.", query_exec_rowcount));
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Q3: Cached %" PRIu64 " slices in total.", SPI_processed));
   SPI_finish ();
   cache_finish (imcx_shared_memory->imcx);
   LWLockRelease (&imcx_shared_memory->lock);
@@ -300,12 +305,11 @@ Datum imcx_info (PG_FUNCTION_ARGS)
   add_row_to_2_col_tuple (attInMetadata, tuplestorestate,
 						  "Cache Available", imcx_shared_memory->imcx->cache_filled ? "Yes" : "No");
   add_row_to_2_col_tuple (attInMetadata, tuplestorestate,
-						  "Slice Cache Size (SliceType Count)", convert_u_int_to_str (imcx_shared_memory->imcx
-																						  ->calendar_count));
+						  "Slice Cache Size (SliceType Count)", convert_u_long_to_str(imcx_shared_memory->imcx->calendar_count));
   add_row_to_2_col_tuple (attInMetadata, tuplestorestate,
 						  "Entry Cache Size (Slices)", convert_u_long_to_str (imcx_shared_memory->imcx->entry_count));
   add_row_to_2_col_tuple (attInMetadata, tuplestorestate,
-						  "Shared Memory Requested (GBytes)",
+						  "Shared Memory Requested (MBytes)",
 						  convert_double_to_str (SHARED_MEMORY_DEF / 1024.0 / 1024.0, 2));
 
   return (Datum)0;
@@ -449,7 +453,7 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
 			  ereport(INFO, errmsg ("Entry[%ld]: %ld", j, curr_calendar.dates[j]));
 			  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
 									  "   Entry",
-									  convert_long_to_str(curr_calendar.dates[j]));
+									  convert_long_to_str (curr_calendar.dates[j]));
 			}
 		}
 	  if (showPageMapEntries)

@@ -12,7 +12,7 @@
 // Constants
 #define TRANCHE_NAME "IMCX"
 #define SHARED_MEMORY_DEF 1024 * 1024 * 1024
-#define DEF_DEBUG_LOG_LEVEL INFO
+#define DEF_DEBUG_LOG_LEVEL DEBUG1
 // OS Includes
 #include <stdio.h>
 // Postgres Includes

@@ -48,14 +48,20 @@ int cache_init (IMCX *imcx, ulong min_calendar_id, ulong max_calendar_id)
   return RET_OK;
 }
 
-int init_calendar (IMCX *imcx, ulong calendar_index, ulong entry_size)
+int init_calendar (IMCX *imcx, ulong calendar_id, ulong entry_size)
 {
+  if ((calendar_id - 1) < 0)
+	{
+	  return RET_MIN_GT_MAX;
+	}
+  ulong calendar_index = calendar_id - 1;
   Calendar *calendar = &imcx->calendars[calendar_index];
   calendar->dates = malloc (entry_size * sizeof (long));
   if (calendar->dates == NULL)
 	{
 	  return RET_NULL_VALUE;
 	}
+  calendar->calendar_id = calendar_id;
   calendar->dates_size = entry_size;
   imcx->entry_count += entry_size;
   return RET_OK;
@@ -66,8 +72,9 @@ static void stdc_display_hash (gpointer key, gpointer value, gpointer user_data)
   printf ("Key: %s, Value: %s", (char *)key, (char *)value);
 }
 
-void add_calendar_name (IMCX *imcx, ulong calendar_index, const char *calendar_name)
+void add_calendar_name (IMCX *imcx, ulong calendar_id, const char *calendar_name)
 {
+  ulong calendar_index = calendar_id - 1;
   Calendar calendar = imcx->calendars[calendar_index];
   // Convert Int to Str
   int num_len = snprintf (NULL, 0, "%ld", calendar.calendar_id);
@@ -75,14 +82,15 @@ void add_calendar_name (IMCX *imcx, ulong calendar_index, const char *calendar_n
   snprintf (id_str, num_len + 1, "%ld", calendar.calendar_id);
   //
   // TODO: Check how to save the id value as Int and not Str (char*) -> similar to IntHashMap
-  char *calendar_name_ll = str_to_lowercase (calendar_name);
-//    char * calendar_name_ll = strdup(calendar_name);
+  char *calendar_name_ll = strdup (calendar_name);
+  str_to_lowercase_self (calendar_name_ll);
   g_hash_table_insert (imcx->calendar_name_hashtable, calendar_name_ll, id_str);
 }
 
 long get_calendar_index_by_name (IMCX *imcx, const char *calendar_name)
 {
-  const char *cal_name = str_to_lowercase (calendar_name);
+  char *cal_name = strdup(calendar_name);
+  str_to_lowercase_self (cal_name);
   _Bool found = g_hash_table_contains (imcx->calendar_name_hashtable, cal_name);
   if (found)
 	{

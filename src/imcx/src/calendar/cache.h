@@ -17,7 +17,7 @@
 #include "inttypes.h"
 
 int cache_init(IMCX * imcx, ulong min_calendar_id, ulong max_calendar_id);
-int init_calendar(IMCX* imcx, ulong calendar_index, ulong entry_size);
+int init_calendar(IMCX* imcx, ulong calendar_id, ulong entry_size);
 void add_calendar_name(IMCX * imcx, ulong calendar_index, const char *calendar_name);
 
 /**
