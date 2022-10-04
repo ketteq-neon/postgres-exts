@@ -2,36 +2,35 @@
 -- (C) KetteQ, Inc.
 --
 
+-- complain if script is sourced in psql, rather than via CREATE EXTENSION
+\echo Use "CREATE EXTENSION kq_imcx" to load this file. \quit
+
 -- Gives information about the extension
-CREATE FUNCTION kq_calendar_cache_info()
+CREATE OR REPLACE FUNCTION kq_calendar_cache_info()
     RETURNS TABLE ("property" text, "value" text)
-AS 'MODULE_PATHNAME', 'imcx_info'
-    LANGUAGE C STABLE STRICT;
+STRICT
+    LANGUAGE c AS 'MODULE_PATHNAME', 'imcx_info';
 
 -- Clears the cache (and frees memory)
 CREATE FUNCTION kq_invalidate_calendar_cache()
-    RETURNS TEXT
-AS 'MODULE_PATHNAME',
-    'imcx_invalidate'
-LANGUAGE C STABLE STRICT;
+    RETURNS TABLE ("value" text)
+STRICT
+    LANGUAGE c AS 'MODULE_PATHNAME', 'imcx_invalidate';
 
 -- Displays as Log Messages the contents of the cache.
 CREATE FUNCTION kq_calendar_cache_report(boolean, boolean)
     RETURNS TABLE ("property" text, "value" text)
-AS 'MODULE_PATHNAME',
-'imcx_report'
-    LANGUAGE C STABLE STRICT;
+STRICT
+    LANGUAGE c AS 'MODULE_PATHNAME', 'imcx_report';
 
 -- Calculates next date for the given days (selects calendar by ID).
 CREATE FUNCTION kq_add_days_by_id(date, int, int)
     RETURNS DATE
-AS 'MODULE_PATHNAME',
-    'imcx_add_calendar_days_by_id'
-LANGUAGE C STABLE STRICT ;
+STRICT
+   LANGUAGE c AS 'MODULE_PATHNAME', 'imcx_add_calendar_days_by_id';
 
 -- Calculates next date for the given days (selects calendar by NAME).
 CREATE FUNCTION kq_add_days(date, int, text)
     RETURNS DATE
-AS 'MODULE_PATHNAME',
-'imcx_add_calendar_days_by_calendar_name'
-    LANGUAGE C STABLE STRICT ;
+STRICT
+    LANGUAGE c AS 'MODULE_PATHNAME', 'imcx_add_calendar_days_by_calendar_name';

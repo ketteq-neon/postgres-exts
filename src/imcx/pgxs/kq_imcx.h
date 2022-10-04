@@ -6,8 +6,13 @@
 #define KETTEQ_INMEMORYCALENDAR_EXTENSION_KQ_IMCX_H
 // Project Info (Provided by CMAKE)
 #ifndef CMAKE_HEADER_DEFINITIONS
-#define CMAKE_VERSION "0.0.0"
+#define CMAKE_VERSION "0.0.0-DEV"
+
 #endif
+// Constants
+#define TRANCHE_NAME "IMCX"
+#define SHARED_MEMORY_DEF 1024 * 1024 * 1024
+#define DEF_DEBUG_LOG_LEVEL INFO
 // OS Includes
 #include <stdio.h>
 // Postgres Includes
@@ -20,23 +25,25 @@
 #include "utils/memutils.h"
 #include "executor/spi.h"
 #include <funcapi.h>
+#include "storage/shmem.h"
+#include "storage/lwlock.h"
 // IMCX Includes
-#include "../src/calendar.h"
+#include "../src/common.h"
 #include "../src/common/util.h"
+#include "../src/calendar/cache.h"
 //
 PG_MODULE_MAGIC;
 
-//extern bool loadingCache;
+void _PG_init (void);
+void _PG_fini (void);
 
-void _PG_init(void);
-void _PG_fini(void);
-void load_all_slices();
+void init_shared_memory ();
+void load_cache_concrete ();
 
-Datum imcx_info(PG_FUNCTION_ARGS);
-Datum imcx_invalidate(PG_FUNCTION_ARGS);
-Datum imcx_report(PG_FUNCTION_ARGS);
-Datum imcx_add_calendar_days_by_id(PG_FUNCTION_ARGS);
-Datum imcx_add_calendar_days_by_calendar_name(PG_FUNCTION_ARGS);
-Datum kq_load_all_calendars(PG_FUNCTION_ARGS);
+Datum imcx_info (PG_FUNCTION_ARGS);
+Datum imcx_invalidate (PG_FUNCTION_ARGS);
+Datum imcx_report (PG_FUNCTION_ARGS);
+Datum imcx_add_calendar_days_by_id (PG_FUNCTION_ARGS);
+Datum imcx_add_calendar_days_by_calendar_name (PG_FUNCTION_ARGS);
 
 #endif //KETTEQ_INMEMORYCALENDAR_EXTENSION_KQ_IMCX_H

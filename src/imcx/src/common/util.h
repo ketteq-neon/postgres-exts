@@ -5,15 +5,13 @@
 #ifndef KETTEQ_POSTGRESQL_EXTENSIONS_UTIL_H
 #define KETTEQ_POSTGRESQL_EXTENSIONS_UTIL_H
 
-#include <stddef.h>
 #include <sys/types.h>
 
-char * convertIntToStr(int number);
-char * convertUIntToStr(uint number);
-
-// ptrdiff_t coutil_uint64_to_ptrdiff(unsigned long input); // To Be Deleted
-int coutil_binary_search(int arr[], int left, int right, int value);
-int coutil_left_binary_search(const int arr[], int left, int right, int value);
-void coutil_str_to_lowercase(char * data);
+char * convert_double_to_str(double number, int precision);
+char * convert_int_to_str(int number);
+char * convert_long_to_str(long number);
+char * convert_u_long_to_str(ulong number);
+char * convert_u_int_to_str(uint number);
+char * str_to_lowercase(const char * string);
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_UTIL_H

@@ -2,21 +2,13 @@
  * (C) KetteQ, Inc.
  */
 
-#include <stdio.h>
-#include "math.h"
-#include "../common.h"
 
-/**
- * Calculates the page size of the calendar depending on the intervals. InMemCalendar entries must be ordered ASC.
- * @param first_date Earliest date interval in calendar.
- * @param last_date Latest date interval in calendar.
- * @param entry_count Count of intervals in the calendar.
- * @return page size as integer.
- */
-int calmath_calculate_page_size(int first_date, int last_date, int entry_count) {
-    double date_range = last_date - first_date;
+#include "math.h"
+#include "src/common/util.h"
+
+int calculate_page_size(long first_date, long last_date, ulong entry_count) {
+    long date_range = last_date - first_date;
     double avg_entries_per_week_calendar = date_range / 7.0;
-    double avg_entries_per_month_calendar = date_range / 30.33;
     double entry_count_d = (double) entry_count;
     //
     int page_size_tmp = 32; // monthly calendar
@@ -25,19 +17,11 @@ int calmath_calculate_page_size(int first_date, int last_date, int entry_count) 
         page_size_tmp = 16; // weekly calendar
     }
     //
-//    printf("CPage-Size: %d, Entries: %.0f, Date-Range: %.0f, AvgWeek: %.4f, AvgMonth: %.4f\n",
-//           page_size_tmp, entry_count_d, date_range, avg_entries_per_week_calendar, avg_entries_per_month_calendar);
-    //
     return page_size_tmp;
 }
 
-/**
- * Returns the first entry of the given date that is inside the given calendar.
- * @param date_adt
- * @param calendar
- * @return
- */
-int calmath_get_closest_index_from_left(int date_adt, InMemCalendar calendar) {
+
+long get_closest_index_from_left(int date_adt, Calendar calendar) {
     int page_map_index = (date_adt / calendar.page_size) - calendar.first_page_offset;
     //
     if (page_map_index >= calendar.page_map_size) {
@@ -49,11 +33,48 @@ int calmath_get_closest_index_from_left(int date_adt, InMemCalendar calendar) {
         return ret_val;
     }
     //
-    int inclusive_start_index = calendar.page_map[page_map_index];
-    int exclusive_end_index = page_map_index < calendar.page_map_size - 1 ? calendar.page_map[page_map_index + 1] : calendar.dates_size;
+    long inclusive_start_index = calendar.page_map[page_map_index];
+    long exclusive_end_index =
+        page_map_index < calendar.page_map_size - 1 ?
+        calendar.page_map[page_map_index + 1] :
+        calendar.dates_size;
     //
-    return coutil_left_binary_search(calendar.dates,
-                                     inclusive_start_index,
-                                     exclusive_end_index,
-                                     date_adt);
+    return left_binary_search (calendar.dates,
+							   inclusive_start_index,
+							   exclusive_end_index,
+							   date_adt);
+}
+
+long binary_search(const long arr[], long left, long right, long value) {
+    if (right == left)
+        return right;
+    if (right > left) {
+        long mid = left + (right - left) / 2;
+        // If the element is present at the middle
+        // itself
+        if (arr[mid] == value)
+            return mid;
+        // If element is smaller than mid, then
+        // it can only be present in left subarray
+        if (arr[mid] > value)
+            return binary_search (arr, left, mid - 1, value);
+        // Else the element can only be present
+        // in right subarray
+        return binary_search (arr, mid + 1, right, value);
+        }
+    // Return -1 if not found.
+    return -1;
+}
+
+long left_binary_search(const long arr[], long left, long right, long value) {
+    while (left <= right) {
+        long mid = left + (right - left) / 2;
+        if (arr[mid] < value)
+            left = mid + 1;
+        else if (arr[mid] > value) {
+            right = mid - 1;
+            } else
+            return mid;
+        }
+    return left - 1;
 }
