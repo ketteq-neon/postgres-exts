@@ -25,26 +25,34 @@ extern "C" {
 }
 
 class IMCXTestClass: public ::testing::Test {
+ public:
+  IMCX *p_get_imcx ()
+  {
+	IMCX *pp = imcx.get ();
+	return pp;
+  }
+ private:
+  std::unique_ptr<IMCX> imcx = std::make_unique<IMCX> ();
  protected:
-  IMCX *imcx{};
   void SetUp () override
   {
-	imcx = (IMCX *)calloc (1, sizeof (IMCX));
-	int ret = cache_init (imcx, 1, CALENDAR_COUNT);
+	cache_invalidate (imcx.get ());
+	int ret = cache_init (imcx.get (), 1, CALENDAR_COUNT);
 	EXPECT_EQ(ret, 0);
 	AddEntries ();
+	cache_finish (imcx.get ());
   }
   virtual void AddEntries ()
   {
-	int ret, cc, jj;
+	int ret;
 	Calendar *cal;
 	//
-	for (cc = 0; cc < imcx->calendar_count; cc++)
+	for (int cc = 0; cc < imcx->calendar_count; cc++)
 	  {
 		cal = &imcx->calendars[cc];
 		cal->calendar_id = cc + 1;
 		//
-		ret = init_calendar (imcx, cc, 11);
+		ret = init_calendar (imcx.get (), cc + 1, 11);
 		EXPECT_EQ(cal->dates_size, 11);
 		EXPECT_EQ(ret, 0);
 		// Add The Entries
@@ -70,12 +78,12 @@ class IMCXTestClass: public ::testing::Test {
 TEST_F(IMCXTestClass, CalendarCount)
 {
   // Check the Size of Allocated Calendars
-  EXPECT_EQ(imcx->calendar_count, CALENDAR_COUNT);
+  EXPECT_EQ(p_get_imcx ()->calendar_count, CALENDAR_COUNT);
 }
 //
 TEST_F(IMCXTestClass, CalendarEntryCount)
 {
-  long dates_size = imcx->calendars[0].dates_size;
+  long dates_size = p_get_imcx ()->calendars[0].dates_size;
   EXPECT_EQ(dates_size, 11);
 }
 //
@@ -170,14 +178,11 @@ TEST_F(IMCXTestClass, IntervalGeneratorTest)
 //// Static Test
 TEST_F(IMCXTestClass, StaticCalendarAddDaysTest)
 {
-  int cc, jj;
-  // Calendar * cal;
-  //
-  for (cc = 0; cc < imcx->calendar_count; cc++)
+  printf("Filling Calendar Entries");
+  for (int cc = 0; cc < p_get_imcx ()->calendar_count; cc++)
 	{
-	  // cal = &imcx->calendars[cc];
 	  // interval = 0
-	  int test_dates[] = {
+	  std::vector<int> test_dates = {
 		  // Valid Dates
 		  7306,
 		  7340,
@@ -194,7 +199,7 @@ TEST_F(IMCXTestClass, StaticCalendarAddDaysTest)
 		  7300,
 		  7561
 	  };
-	  int test_intervals[] = {
+	  std::vector<int> test_intervals = {
 		  // Valid Intervals
 		  0,
 		  -1,
@@ -211,7 +216,7 @@ TEST_F(IMCXTestClass, StaticCalendarAddDaysTest)
 		  0,
 		  3
 	  };
-	  int expected_results[] = {
+	  std::vector<int> expected_results = {
 		  // Valid Results
 		  7305,
 		  7305,
@@ -228,19 +233,23 @@ TEST_F(IMCXTestClass, StaticCalendarAddDaysTest)
 		  7305, // PAST (Gets First Date of Calendar)
 		  INT32_MAX // FUTURE
 	  };
+	  printf("Filling Calendar Entries DONE");
 	  //
-	  for (jj = 0; jj < 13; jj++)
+	  for (int jj = 0; jj < 13; jj++)
 		{
-		  Calendar cal = imcx->calendars[cc];
-		  int first_date_index, result_date_index;
-		  int add_days_result = add_calendar_days (imcx,
+		  Calendar cal = p_get_imcx ()->calendars[cc];
+		  unsigned long first_date_index;
+		  unsigned long result_date_index;
+		  int32 new_date;
+		  int add_days_result = add_calendar_days (p_get_imcx (),
 												   cc,
 												   test_dates[jj],
 												   test_intervals[jj],
+												   &new_date,
 												   &first_date_index,
 												   &result_date_index);
 		  printf ("Cal-Id: %lu, Input: %d, Interval: %d, Expected: %d\n"
-				  "Add-Days-Result: %d, FirstDate-Idx: %d = %ld, Result-Idx: %d = %ld\n",
+				  "Add-Days-Result: %d, FirstDate-Idx: %lu = %d, Result-Idx: %lu = %d\n",
 				  cal.calendar_id,
 				  test_dates[jj],
 				  test_intervals[jj],
@@ -259,7 +268,7 @@ TEST_F(IMCXTestClass, StaticCalendarAddDaysTest)
 TEST_F(IMCXTestClass, StaticCalendarInvalidate)
 {
   // Invalidate the static test in order to start the dynamic ones.
-  int ret = cache_invalidate (imcx);
+  int ret = cache_invalidate (p_get_imcx ());
   EXPECT_EQ(ret, 0);
 }
 ////
@@ -271,51 +280,63 @@ TEST_F(IMCXTestClass, CalendarCacheEntriesInit)
 	{
 	  GTEST_SKIP();
 	}
-  SetUp ();
+  int invalidate_result = cache_invalidate (p_get_imcx ());
+  EXPECT_EQ(invalidate_result, RET_SUCCESS);
   //
   printf ("Initializing entries between %d and %d for %lu calendars.\n",
 		  ENTRY_COUNT_MIN, ENTRY_COUNT_MAX,
-		  imcx->calendar_count);
+		  p_get_imcx ()->calendar_count);
   // C++11 Random
   std::random_device rd;
   std::mt19937 mt (rd ());
   std::uniform_int_distribution<int> dist (ENTRY_COUNT_MIN, ENTRY_COUNT_MAX);
   //
-  int ret,
-	  cc;
+  int ret;
+  int cc;
   Calendar *cal;
   // Init the Calendars
-  for (cc = 0; cc < imcx->calendar_count; cc++)
+  for (cc = 0; cc < p_get_imcx ()->calendar_count; cc++)
 	{
 	  // Get Random Entries Number Between the boundaries
 	  int per_calendar_entry_count = dist (mt);
 	  // Init The Entries
-	  cal = &imcx->calendars[cc];
+	  cal = &p_get_imcx ()->calendars[cc];
 	  cal->calendar_id = cc + 1;
 	  //
-	  ret = init_calendar (imcx, cc, per_calendar_entry_count);
-	  EXPECT_EQ(ret, 0);
+	  ret = init_calendar (p_get_imcx (), cc, per_calendar_entry_count);
+	  EXPECT_EQ(ret, RET_SUCCESS);
 	  EXPECT_EQ(cal->dates_size, per_calendar_entry_count);
 	  // Init the Calendar Name
-	  int num_len = snprintf (nullptr, 0, "Calendar Number %d", cc);
-	  char *cal_name = (char *)malloc ((num_len + 1) * sizeof (char));
-	  snprintf (cal_name, num_len + 1, "Calendar Number %d", cc);
+	  const int num_len = snprintf (nullptr, 0, "Calendar Number %d", cc);
+	  auto cal_name = std::vector<char> ();
+	  //char *cal_name = (char *)malloc ((num_len + 1) * sizeof (char));
+	  snprintf (cal_name.data (), num_len + 1, "Calendar Number %d", cc);
 	  //
-	  add_calendar_name (imcx, cc, cal_name);
+	  add_calendar_name (p_get_imcx (), cc, cal_name.data ());
 	  // Check if we can get the calendar by name.
-	  long calendar_index = get_calendar_index_by_name (imcx, cal_name);
-	  Calendar g_cal = imcx->calendars[calendar_index];
+	  unsigned long calendar_index;
+	  int calendar_index_result =
+		  get_calendar_index_by_name (p_get_imcx (), cal_name.data (), &calendar_index);
+	  if (calendar_index_result != RET_SUCCESS)
+		{
+		  if (calendar_index_result == RET_ERROR_NOT_FOUND)
+			printf("Calendar does not exists.");
+		  if (calendar_index_result == RET_ERROR_UNSUPPORTED_OP)
+			printf("Cannot get calendar by name. (Out of Bounds)");
+		  return;
+		}
+	  Calendar g_cal = p_get_imcx ()->calendars[calendar_index];
 	  // If found, ret == 0
-	  EXPECT_EQ(ret, 0);
+	  EXPECT_EQ(ret, RET_SUCCESS);
 	  // Now check if the calendar is the same (until now)
 	  EXPECT_EQ(cal->calendar_id, g_cal.calendar_id);
 	  EXPECT_EQ(cal->dates_size, g_cal.dates_size);
 	  //
-	  free (cal_name);
+	  // free (cal_name);
 	  // total_entry_count += per_calendar_entry_count;
 	}
   printf ("\n");
-  EXPECT_EQ(cc, imcx->calendar_count);
+  EXPECT_EQ(cc, p_get_imcx ()->calendar_count);
 }
 ////
 ///// This will fill the in-mem cache
@@ -327,25 +348,23 @@ TEST_F(IMCXTestClass, CalendarEntriesInsert)
 	  GTEST_SKIP();
 	}
   //
-  int ret,
-	  cc,
-	  jj,
-	  c_entry_count;
-  //
-  c_entry_count = 0;
+  int ret;
+  int cc;
+  int jj;
+  int c_entry_count = 0;
   //
   printf ("Will fill entries for %lu calendars (%lu total entries).\n",
-		  imcx->calendar_count, imcx->entry_count);
+		  p_get_imcx ()->calendar_count, p_get_imcx ()->entry_count);
   //
-  for (cc = 0; cc < imcx->calendar_count; cc++)
+  for (cc = 0; cc < p_get_imcx ()->calendar_count; cc++)
 	{
-	  Calendar *cal = &imcx->calendars[cc];
+	  Calendar *cal = &p_get_imcx ()->calendars[cc];
 	  // printf("Will fill %d entries.\n", cal->dates_size);
 	  for (jj = 0; jj < cal->dates_size; jj++)
 		{
 		  int entry = gen_date_from_interval (7305, jj, nullptr);
 		  cal->dates[jj] = entry;
-		  printf ("dates[%d]=%ld|",
+		  printf ("dates[%d]=%d|",
 				  jj,
 				  cal->dates[jj]);
 		  EXPECT_EQ(cal->dates[jj], entry);
@@ -365,27 +384,16 @@ TEST_F(IMCXTestClass, CalendarEntriesInsert)
 	  EXPECT_EQ(ret, 0);
 	}
   printf ("\n");
-  EXPECT_EQ(cc, imcx->calendar_count);
+  EXPECT_EQ(cc, p_get_imcx ()->calendar_count);
 }
 
 void add_days_test (IMCX *imcx)
 {
-  //
-  int cc,
-	  jj,
-	  c_entry_count;
-  //
-  c_entry_count = 0;
   // Generate fake input dates for each calendar
-  for (cc = 0; cc < imcx->calendar_count; cc++)
+  for (int cc = 0; cc < imcx->calendar_count; cc++)
 	{
-	  Calendar *cal = &imcx->calendars[cc];
-//        printf("Calendar-Id: %d, Page-Size: %d, First-Entry: %d, Last-Entry: %d, Entries: %d\n",
-//               cal->calendar_id,
-//               cal->page_size,
-//               cal->dates[0],
-//               cal->dates[cal->dates_size-1],
-//               cal->dates_size);
+	  Calendar const *cal = &imcx->calendars[cc];
+
 	  //
 	  int interval_to_test = gen_fake_interval ();
 	  int fake_input = gen_fake_input_date (cal->dates[0], cal->dates[cal->dates_size - 1]);
@@ -395,23 +403,25 @@ void add_days_test (IMCX *imcx)
 	  EXPECT_LT(cal->dates[0], cal->dates[cal->dates_size - 1]);
 	  EXPECT_LT(fake_input, cal->dates[cal->dates_size - 1]);
 	  //
-	  int fd_idx = 0, rs_idx = 0;
+	  unsigned long fd_idx = 0;
+	  unsigned long rs_idx = 0;
+	  int32 new_date = 0;
 	  int add_days_result = add_calendar_days (imcx,
 											   cc,
 											   fake_input,
 											   interval_to_test,
+											   &new_date,
 											   &fd_idx,
-											   &rs_idx);
-	  //
+											   &rs_idx);      //
 	  //if (add_days_result == INT32_MAX || add_days_result == INT32_MIN) {
 	  //    printf("Result Date in Future or Past (result=%d)\n", add_days_result);
 	  //} else {
-
-	  Calendar d = *cal;
-	  printf ("Cal-Id: %lu, Fake-Input: %d, Interval: %d\nAdd-Days-Result: %d, FirstDate-Idx: %d = %ld, Result-Idx: %d = %ld\n",
+	  EXPECT_NE(add_days_result, RET_ERROR_NOT_READY);
+	  printf ("Cal-Id: %lu, Fake-Input: %d, Interval: %d\nNew-Date: %d, Add-Days-Result: %d, FirstDate-Idx: %lu = %d, Result-Idx: %lu = %d\n",
 			  cal->calendar_id,
 			  fake_input,
 			  interval_to_test,
+			  new_date,
 			  add_days_result,
 			  fd_idx,
 			  cal->dates[fd_idx],
@@ -419,16 +429,16 @@ void add_days_test (IMCX *imcx)
 			  cal->dates[rs_idx]);
 	  //}
 	  //
-	  EXPECT_LE(add_days_result, INT32_MAX);
-	  EXPECT_GE(add_days_result, INT32_MIN);
+	  EXPECT_LE(new_date, INT32_MAX);
+	  EXPECT_GE(new_date, INT32_MIN);
 	  //
 	  if (interval_to_test <= 0)
 		{
-		  EXPECT_LE(add_days_result, fake_input);
+		  EXPECT_LE(new_date, fake_input);
 		}
 	  else
 		{
-		  EXPECT_GT(add_days_result, fake_input);
+		  EXPECT_GT(new_date, fake_input);
 		}
 	}
 }
@@ -443,7 +453,7 @@ TEST_F(IMCXTestClass, CalendarAddDaysTest)
 	}
   for (int c = 0; c < ADD_DAYS_REPETITIONS; c++)
 	{
-	  add_days_test (imcx);
+	  add_days_test (p_get_imcx ());
 	}
 }
 ////
@@ -456,45 +466,45 @@ TEST_F(IMCXTestClass, CalendarInvalidate)
 	  GTEST_SKIP();
 	}
   //
-  int ret = cache_invalidate (imcx);
-  EXPECT_EQ(ret, 0);
+  int ret = cache_invalidate (p_get_imcx ());
+  EXPECT_EQ(ret, RET_SUCCESS);
 }
 //
 TEST_F(IMCXTestClass, IntToStringConversion)
 {
   int myNumber = 1005;
-  char *myNumberStr = convert_int_to_str (myNumber);
+  char const *myNumberStr = convert_int_to_str (myNumber);
   EXPECT_STREQ(myNumberStr, "1005");
   int myNumber2 = 10010;
-  char *myNumberStr2 = convert_int_to_str (myNumber2);
+  char const *myNumberStr2 = convert_int_to_str (myNumber2);
   EXPECT_STREQ(myNumberStr2, "10010");
   // -- Free
-  free (myNumberStr);
-  free (myNumberStr2);
+//  free (myNumberStr);
+//  free (myNumberStr2);
 }
 //
 TEST_F(IMCXTestClass, LongToStringConversion)
 {
   long myNumber = 2005;
-  char *myNumberStr = convert_long_to_str (myNumber);
+  char const *myNumberStr = convert_long_to_str (myNumber);
   EXPECT_STREQ(myNumberStr, "2005");
   long myNumber2 = 31010;
-  char *myNumberStr2 = convert_long_to_str (myNumber2);
+  char const *myNumberStr2 = convert_long_to_str (myNumber2);
   EXPECT_STREQ(myNumberStr2, "31010");
   // -- Free
-  free (myNumberStr);
-  free (myNumberStr2);
+//  free (myNumberStr);
+//  free (myNumberStr2);
 }
 //
 TEST_F(IMCXTestClass, UIntToStringConversion)
 {
   uint myNumber = 1015;
-  char *myNumberStr = convert_u_int_to_str (myNumber);
+  char const *myNumberStr = convert_u_int_to_str (myNumber);
   EXPECT_STREQ(myNumberStr, "1015");
   uint myNumber2 = 10012;
-  char *myNumberStr2 = convert_u_int_to_str (myNumber2);
+  char const *myNumberStr2 = convert_u_int_to_str (myNumber2);
   EXPECT_STREQ(myNumberStr2, "10012");
   // -- Free
-  free (myNumberStr);
-  free (myNumberStr2);
+//  free (myNumberStr);
+//  free (myNumberStr2);
 }

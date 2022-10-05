@@ -21,12 +21,11 @@ int calculate_page_size(long first_date, long last_date, ulong entry_count) {
 }
 
 
-long get_closest_index_from_left(int date_adt, Calendar calendar) {
-    int page_map_index = (date_adt / calendar.page_size) - calendar.first_page_offset;
+long get_closest_index_from_left(long date_adt, Calendar calendar) {
+    long page_map_index = (date_adt / calendar.page_size) - calendar.first_page_offset;
     //
     if (page_map_index >= calendar.page_map_size) {
-        int ret_val = -1 * ((int) calendar.dates_size) - 1;
-
+        long ret_val = -1 * ((long) calendar.dates_size) - 1;
         return ret_val;
     } else if (page_map_index < 0) {
         int ret_val = -1;
@@ -66,7 +65,7 @@ long binary_search(const long arr[], long left, long right, long value) {
     return -1;
 }
 
-long left_binary_search(const long arr[], long left, long right, long value) {
+long left_binary_search (const int * arr, long left, long right, long value) {
     while (left <= right) {
         long mid = left + (right - left) / 2;
         if (arr[mid] < value)

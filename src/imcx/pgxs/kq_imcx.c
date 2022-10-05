@@ -265,9 +265,9 @@ void add_row_to_1_col_tuple (
   tuplestore_puttuple (tuplestorestate, tuple);
 }
 
-PG_FUNCTION_INFO_V1(imcx_info);
+PG_FUNCTION_INFO_V1(calendar_info);
 
-Datum imcx_info (PG_FUNCTION_ARGS)
+Datum calendar_info (PG_FUNCTION_ARGS)
 {
   ReturnSetInfo *pInfo = (ReturnSetInfo *)fcinfo->resultinfo;
   Tuplestorestate *tuplestorestate;
@@ -305,7 +305,8 @@ Datum imcx_info (PG_FUNCTION_ARGS)
   add_row_to_2_col_tuple (attInMetadata, tuplestorestate,
 						  "Cache Available", imcx_shared_memory->imcx->cache_filled ? "Yes" : "No");
   add_row_to_2_col_tuple (attInMetadata, tuplestorestate,
-						  "Slice Cache Size (SliceType Count)", convert_u_long_to_str(imcx_shared_memory->imcx->calendar_count));
+						  "Slice Cache Size (SliceType Count)", convert_u_long_to_str (imcx_shared_memory->imcx
+																						   ->calendar_count));
   add_row_to_2_col_tuple (attInMetadata, tuplestorestate,
 						  "Entry Cache Size (Slices)", convert_u_long_to_str (imcx_shared_memory->imcx->entry_count));
   add_row_to_2_col_tuple (attInMetadata, tuplestorestate,
@@ -315,11 +316,15 @@ Datum imcx_info (PG_FUNCTION_ARGS)
   return (Datum)0;
 }
 
-PG_FUNCTION_INFO_V1(imcx_invalidate);
+PG_FUNCTION_INFO_V1(calendar_invalidate);
 
-Datum imcx_invalidate (PG_FUNCTION_ARGS)
+Datum calendar_invalidate (PG_FUNCTION_ARGS)
 {
   LWLockAcquire (&imcx_shared_memory->lock, LW_EXCLUSIVE);
+  if (!LWLockHeldByMe (&imcx_shared_memory->lock))
+	{
+	  ereport(ERROR, errmsg ("Cannot acquire exclusive lock."));
+	}
 
   ReturnSetInfo *p_return_set_info = (ReturnSetInfo *)fcinfo->resultinfo;
   Tuplestorestate *tuplestorestate;
@@ -383,7 +388,11 @@ void get_name (gpointer _key, gpointer _value, gpointer _user_data)
 
 int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallInfo fcinfo)
 {
-  LWLockAcquire (&imcx_shared_memory->lock, LW_EXCLUSIVE);
+  LWLockAcquire (&imcx_shared_memory->lock, LW_SHARED);
+  if (!LWLockHeldByMe (&imcx_shared_memory->lock))
+	{
+	  ereport(ERROR, errmsg ("Cannot acquire shared lock."));
+	}
 
   ReturnSetInfo *p_return_set_info = (ReturnSetInfo *)fcinfo->resultinfo;
   Tuplestorestate *tuplestorestate;
@@ -400,21 +409,21 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
 	ereport(ERROR,
 			(errcode (ERRCODE_SYNTAX_ERROR),
 				errmsg ("materialize mode required, but it is not allowed in this context")));
+
   /* Build tuplestorestate to hold the result rows */
   old_context = MemoryContextSwitchTo (p_return_set_info->econtext
 										   ->ecxt_per_query_memory); // Switch To Per Query Context
-
   tuple_desc = CreateTemplateTupleDesc (2);
   TupleDescInitEntry (tuple_desc,
 					  (AttrNumber)1, "property", TEXTOID, -1, 0);
   TupleDescInitEntry (tuple_desc,
 					  (AttrNumber)2, "value", TEXTOID, -1, 0);
-
   tuplestorestate = tuplestore_begin_heap (true, false, work_mem); // Create TupleStore
   p_return_set_info->returnMode = SFRM_Materialize;
   p_return_set_info->setResult = tuplestorestate;
   p_return_set_info->setDesc = tuple_desc;
   MemoryContextSwitchTo (old_context); // Switch back to previous context
+
   p_metadata = TupleDescGetAttInMetadata (tuple_desc);
   // --
   add_row_to_2_col_tuple (p_metadata, tuplestorestate,
@@ -448,22 +457,23 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
 							  "   Page Size", convert_int_to_str (curr_calendar.page_size));
 	  if (showEntries)
 		{
-		  for (ulong j = 0; j < curr_calendar.dates_size; j++)
+		  for (unsigned long j = 0; j < curr_calendar.dates_size; j++)
 			{
-			  ereport(INFO, errmsg ("Entry[%ld]: %ld", j, curr_calendar.dates[j]));
+			  ereport(INFO, errmsg ("Entry[%lu]: %d", j, curr_calendar.dates[j]));
+
 			  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
 									  "   Entry",
-									  convert_long_to_str (curr_calendar.dates[j]));
+									  convert_int_to_str(curr_calendar.dates[j]));
 			}
 		}
 	  if (showPageMapEntries)
 		{
 		  for (int j = 0; j < curr_calendar.page_map_size; j++)
 			{
-			  ereport(INFO, errmsg ("PageMap Entry[%d]: %d", j, curr_calendar.page_map[j]));
+			  ereport(INFO, errmsg ("PageMap Entry[%d]: %ld", j, curr_calendar.page_map[j]));
 			  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
 									  "   PageMap Entry",
-									  convert_int_to_str (curr_calendar.page_map[j]));
+									  convert_long_to_str(curr_calendar.page_map[j]));
 			}
 		}
 	}
@@ -474,9 +484,9 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
   return 0;
 }
 
-PG_FUNCTION_INFO_V1(imcx_report);
+PG_FUNCTION_INFO_V1(calendar_report);
 
-Datum imcx_report (PG_FUNCTION_ARGS)
+Datum calendar_report (PG_FUNCTION_ARGS)
 {
   int32 showEntries = PG_GETARG_INT32(0);
   int32 showPageMapEntries = PG_GETARG_INT32(1);
@@ -484,30 +494,39 @@ Datum imcx_report (PG_FUNCTION_ARGS)
   return (Datum)0;
 }
 
-PG_FUNCTION_INFO_V1(imcx_add_calendar_days_by_id);
+PG_FUNCTION_INFO_V1(add_calendar_days_by_id);
 
 Datum
-imcx_add_calendar_days_by_id (PG_FUNCTION_ARGS)
+add_calendar_days_by_id (PG_FUNCTION_ARGS)
 {
-  LWLockAcquire (&imcx_shared_memory->lock, LW_EXCLUSIVE);
+  LWLockAcquire (&imcx_shared_memory->lock, LW_SHARED);
+  if (!LWLockHeldByMe (&imcx_shared_memory->lock))
+	{
+	  ereport(ERROR, errmsg ("Cannot acquire shared lock."));
+	}
   int32 date = PG_GETARG_INT32(0);
   int32 calendar_interval = PG_GETARG_INT32(1);
   int32 calendar_id = PG_GETARG_INT32(2);
   int32 calendar_index = calendar_id - 1;
   Calendar cal = imcx_shared_memory->imcx->calendars[calendar_index];
   //
-  int fd_idx;
-  int rs_idx;
+  unsigned long fd_idx;
+  unsigned long rs_idx;
+  int32 new_date;
   //
-  DateADT new_date = add_calendar_days (imcx_shared_memory->imcx,
+  int add_calendar_days_result = add_calendar_days (imcx_shared_memory->imcx,
 										calendar_index,
 										date,
 										calendar_interval,
+										&new_date,
 										&fd_idx,
 										&rs_idx);
   //
+  if (add_calendar_days_result == RET_ERROR_NOT_READY) {
+	  ereport(ERROR, errmsg ("Cache is not ready."));
+	}
   ereport(DEBUG1, errmsg (
-	  "FirstDate-Idx: %d = %ld, ResultDate-Idx: %d = %ld",
+	  "FirstDate-Idx: %lu = %d, ResultDate-Idx: %lu = %d",
 	  fd_idx,
 	  cal.dates[fd_idx],
 	  rs_idx,
@@ -518,36 +537,54 @@ imcx_add_calendar_days_by_id (PG_FUNCTION_ARGS)
   PG_RETURN_DATEADT(new_date);
 }
 
-PG_FUNCTION_INFO_V1(imcx_add_calendar_days_by_calendar_name);
+PG_FUNCTION_INFO_V1(add_calendar_days_by_name);
 
 Datum
-imcx_add_calendar_days_by_calendar_name (PG_FUNCTION_ARGS)
+add_calendar_days_by_name (PG_FUNCTION_ARGS)
 {
-  LWLockAcquire (&imcx_shared_memory->lock, LW_EXCLUSIVE);
+  LWLockAcquire (&imcx_shared_memory->lock, LW_SHARED);
+  if (!LWLockHeldByMe (&imcx_shared_memory->lock))
+	{
+	  ereport(ERROR, errmsg ("Cannot acquire shared lock."));
+	}
 
-  int32 date = PG_GETARG_INT32(0);
+  int32 input_date = PG_GETARG_INT32(0);
   int32 calendar_interval = PG_GETARG_INT32(1);
   const text *calendar_name = PG_GETARG_TEXT_P(2);
   // Convert Name to CString
   const char *calendar_name_str = text_to_cstring (calendar_name);
   // Lookup for the Calendar
   Calendar cal;
-  long calendar_index = get_calendar_index_by_name (imcx_shared_memory->imcx, calendar_name_str);
-  if (calendar_index < 0)
+  unsigned long calendar_index;
+  int get_calendar_result =
+	  get_calendar_index_by_name (
+		  imcx_shared_memory->imcx,
+		  calendar_name_str,
+		  &calendar_index
+		  );
+  if (get_calendar_result != RET_SUCCESS)
 	{
-	  ereport(ERROR, errmsg ("Calendar does not exists."));
+	  if (get_calendar_result == RET_ERROR_NOT_FOUND)
+	  	ereport(ERROR, errmsg ("Calendar does not exists."));
+	  if (get_calendar_result == RET_ERROR_UNSUPPORTED_OP)
+		ereport(ERROR, errmsg ("Cannot get calendar by name. (Out of Bounds)"));
 	}
-  int fd_idx;
-  int rs_idx;
+  unsigned long fd_idx;
+  unsigned long rs_idx;
+  DateADT new_date;
   // Result Date
-  DateADT new_date = add_calendar_days (imcx_shared_memory->imcx,
+  int add_calendar_days_result = add_calendar_days (imcx_shared_memory->imcx,
 										calendar_index,
-										date,
+										input_date,
 										calendar_interval,
+										&new_date,
 										&fd_idx,
 										&rs_idx);
+  if (add_calendar_days_result == RET_ERROR_NOT_READY) {
+	  ereport(ERROR, errmsg ("Cache is not ready."));
+  }
   ereport(DEBUG1, errmsg (
-	  "FirstDate-Idx: %d = %ld, ResultDate-Idx: %d = %ld",
+	  "FirstDate-Idx: %lu = %d, ResultDate-Idx: %lu = %d",
 	  fd_idx,
 	  cal.dates[fd_idx],
 	  rs_idx,

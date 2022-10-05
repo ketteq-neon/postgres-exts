@@ -11,8 +11,8 @@
 #endif
 // Constants
 #define TRANCHE_NAME "IMCX"
-#define SHARED_MEMORY_DEF 1024 * 1024 * 1024
-#define DEF_DEBUG_LOG_LEVEL DEBUG1
+#define SHARED_MEMORY_DEF 1024 * 1024 * 1024 // 1 GB
+#define DEF_DEBUG_LOG_LEVEL INFO
 // OS Includes
 #include <stdio.h>
 // Postgres Includes
@@ -40,10 +40,10 @@ void _PG_fini (void);
 void init_shared_memory ();
 void load_cache_concrete ();
 
-Datum imcx_info (PG_FUNCTION_ARGS);
-Datum imcx_invalidate (PG_FUNCTION_ARGS);
-Datum imcx_report (PG_FUNCTION_ARGS);
-Datum imcx_add_calendar_days_by_id (PG_FUNCTION_ARGS);
-Datum imcx_add_calendar_days_by_calendar_name (PG_FUNCTION_ARGS);
+Datum calendar_info (PG_FUNCTION_ARGS);
+Datum calendar_invalidate (PG_FUNCTION_ARGS);
+Datum calendar_report (PG_FUNCTION_ARGS);
+Datum add_calendar_days_by_id (PG_FUNCTION_ARGS);
+Datum add_calendar_days_by_name (PG_FUNCTION_ARGS);
 
 #endif //KETTEQ_INMEMORYCALENDAR_EXTENSION_KQ_IMCX_H

@@ -29,7 +29,7 @@ int calculate_page_size (long first_date, long last_date, ulong entry_count);
  * @param calendar
  * @return
  */
-long get_closest_index_from_left (int date_adt, Calendar calendar);
+long get_closest_index_from_left (long date_adt, Calendar calendar);
 
 /**
  * From here: https://www.geeksforgeeks.org/binary-search/
@@ -49,6 +49,6 @@ long binary_search (const long arr[], long left, long right, long value);
  * @param value
  * @return
  */
-long left_binary_search (const long arr[], long left, long right, long value);
+long left_binary_search (const int * arr, long left, long right, long value);
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_MATH_H
