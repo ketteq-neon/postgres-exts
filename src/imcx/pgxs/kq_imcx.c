@@ -29,7 +29,6 @@ void _PG_fini (void)
 }
 
 typedef struct {
-	char *data; // Test Data Pointer
 	int tranche_id;
 	LWLock lock;
 	// -- imcx
