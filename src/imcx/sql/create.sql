@@ -13,7 +13,7 @@ INSERT INTO calendar VALUES(3, 'Calendar 3');
 INSERT INTO calendar VALUES(4, 'Calendar 4');
 
 --- Create the calendar entries table
-CREATE TABLE calendar_entries (calendar_id integer NOT NULL, date date, id SERIAL PRIMARY KEY);
+CREATE TABLE calendar_entries (id integer NOT NULL, date date, id SERIAL PRIMARY KEY);
 
 --- Insert the test data
 ---- Monthly Calendar ID# 1

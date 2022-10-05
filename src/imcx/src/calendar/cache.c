@@ -16,8 +16,6 @@ void glib_value_free (gpointer data)
   free (data);
 }
 
-// Public Functions
-
 int cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_calendar_id)
 {
   if (min_calendar_id > max_calendar_id)
@@ -33,7 +31,6 @@ int cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_cal
 	  return RET_ERROR_CANNOT_ALLOCATE;
 	}
   //
-
   imcx->calendar_count = calendar_count;
   imcx->entry_count = 0;
   // Allocate the HashMap that will store the calendar names (str). This is a dynamic map.
@@ -46,36 +43,34 @@ int cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_cal
   return RET_SUCCESS;
 }
 
-int init_calendar (IMCX *imcx, unsigned long calendar_id, unsigned long entry_size)
+int calendar_init (IMCX *imcx, unsigned long calendar_id, long entry_size)
 {
   if (imcx->cache_filled) {
 	  return RET_ERROR_UNSUPPORTED_OP;
   }
-  if ((calendar_id - 1) < 0)
+  if (calendar_id == 0)
 	{
 	  return RET_ERROR_INVALID_PARAM;
 	}
-  unsigned long calendar_index = calendar_id - 1;
-  Calendar *calendar = &imcx->calendars[calendar_index];
-  calendar->dates = malloc (entry_size * sizeof (long));
+  Calendar *calendar = &imcx->calendars[calendar_id - 1];
+  calendar->dates = malloc (entry_size * sizeof (int));
   if (calendar->dates == NULL)
 	{
 	  return RET_ERROR_CANNOT_ALLOCATE;
 	}
-  calendar->calendar_id = calendar_id;
+  calendar->id = calendar_id;
   calendar->dates_size = entry_size;
   imcx->entry_count += entry_size;
   return RET_SUCCESS;
 }
 
-void add_calendar_name (IMCX *imcx, unsigned long calendar_id, const char *calendar_name)
+void set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *calendar_name)
 {
-  unsigned long calendar_index = calendar_id - 1;
   Calendar calendar = imcx->calendars[calendar_index];
   // Convert Int to Str
-  int num_len = snprintf (NULL, 0, "%ld", calendar.calendar_id);
+  int num_len = snprintf (NULL, 0, "%ld", calendar.id);
   char *id_str = malloc ((num_len + 1) * sizeof (char));
-  snprintf (id_str, num_len + 1, "%ld", calendar.calendar_id);
+  snprintf (id_str, num_len + 1, "%ld", calendar.id);
   //
   // TODO: Check how to save the id value as Int and not Str (char*) -> similar to IntHashMap
   char *calendar_name_ll = strdup (calendar_name);

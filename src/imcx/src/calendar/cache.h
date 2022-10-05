@@ -39,7 +39,7 @@ int cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_cal
  *         RET_ERROR_UNSUPPORTED_OP = Cache already finished, call invalidate to use init again.
  *         RET_SUCCESS = SUCCESS.
  */
-int init_calendar (IMCX *imcx, unsigned long calendar_id, unsigned long entry_size);
+int calendar_init (IMCX *imcx, unsigned long calendar_id, long entry_size);
 
 /**
  * Sets a name for a given calendar index.
@@ -47,7 +47,7 @@ int init_calendar (IMCX *imcx, unsigned long calendar_id, unsigned long entry_si
  * @param calendar_index Calendar index.
  * @param calendar_name Constant string containing the name of the calendar.
  */
-void add_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *calendar_name);
+void set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *calendar_name);
 
 /**
  * Gets the Calendar Index by its given name.

@@ -26,7 +26,7 @@
  *
  */
 typedef struct {
-	unsigned long calendar_id; // Calendar ID (Same as in origin DB)
+	unsigned long id; // Calendar ID (Same as in origin DB)
 	int32 * dates; // Dates contained in the Calendar
 	long dates_size; // Count of dates.
 	int page_size; // Calculated Page Size

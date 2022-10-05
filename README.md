@@ -40,7 +40,7 @@ hosts is not supported.
 7. Run `make` to create the extension shared object.
 
     ```bash
-    make 
+    make -j8
     ```
    
 * Other build helpers such as `ninja` can be used as well.
