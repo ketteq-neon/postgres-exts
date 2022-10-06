@@ -11,7 +11,8 @@
 #include <ctime>
 #include <cstdlib>
 extern "C" {
-#include "../src/calendar/cache.h"
+
+	#include "../src/calendar/cache.h"
 }
 
 // OPTIONS
@@ -34,8 +35,6 @@ constexpr int MOCK_INTERVAL_MIN = 0;
 constexpr int MOCK_INTERVAL_MAX = 4;
 constexpr int ADD_DAYS_REPETITIONS = 2;
 //
-
-
 
 class IMCXTestClass: public ::testing::Test {
  public:

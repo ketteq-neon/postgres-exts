@@ -28,7 +28,7 @@
 typedef struct {
 	unsigned long id; // Calendar ID (Same as in origin DB)
 	int32 * dates; // Dates contained in the Calendar
-	long dates_size; // Count of dates.
+	unsigned long dates_size; // Count of dates.
 	int page_size; // Calculated Page Size
 	long first_page_offset; // Offset of the First Page
 	long * page_map; // Page map contained in the Calendar
@@ -36,7 +36,7 @@ typedef struct {
 } Calendar;
 
 typedef struct {
-	Calendar * calendars; // Calendars contained in the ICMX struct
+	Calendar ** calendars; // Calendars contained in the ICMX struct
 	unsigned long calendar_count; // Count of Calendars
 	unsigned long entry_count; // Count of Entries (From all Calendars)
 	bool cache_filled; // Control variable set to TRUE when the `cache_finish()` function is called.

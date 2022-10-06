@@ -13,6 +13,10 @@
 #define TRANCHE_NAME "IMCX"
 #define SHARED_MEMORY_DEF 1024 * 1024 * 1024 // 1 GB
 #define DEF_DEBUG_LOG_LEVEL DEBUG1
+#define QUERY_GET_CAL_MIN_MAX_ID "select min(s.id), max(s.id) from ketteq.slice_type s"
+#define QUERY_GET_CAL_ENTRY_COUNT "select s.slice_type_id, count(*), (select st.\"name\" from ketteq.slice_type st where st.id = s.slice_type_id) \"name\" from ketteq.slice s group by s.slice_type_id order by s.slice_type_id asc;"
+#define QUERY_GET_CAL_GET_ENTRIES "select s.slice_type_id, s.start_on from ketteq.slice s order by s.slice_type_id asc, s.start_on asc;"
+
 // OS Includes
 #include <stdio.h>
 // Postgres Includes
@@ -23,6 +27,7 @@
 #include "utils/date.h"
 #include "utils/builtins.h"
 #include "utils/memutils.h"
+#include "utils/guc.h"
 #include "executor/spi.h"
 #include <funcapi.h>
 #include "storage/shmem.h"
@@ -37,6 +42,7 @@ PG_MODULE_MAGIC;
 void _PG_init (void);
 void _PG_fini (void);
 
+void init_gucs ();
 void init_shared_memory ();
 void load_cache_concrete ();
 

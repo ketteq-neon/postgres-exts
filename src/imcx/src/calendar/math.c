@@ -4,7 +4,6 @@
 
 
 #include "math.h"
-#include "src/common/util.h"
 
 int calculate_page_size(long first_date, long last_date, ulong entry_count) {
     long date_range = last_date - first_date;
