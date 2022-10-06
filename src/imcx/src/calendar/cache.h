@@ -19,10 +19,12 @@
 #include "../common/util.h"
 
 #include <storage/shmem.h>
+#include <miscadmin.h>
 
 int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_calendar_id);
 int pg_calendar_init (IMCX *imcx, unsigned long calendar_id, unsigned long entry_size);
-void pg_set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *calendar_name);
+int pg_set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *calendar_name);
+int pg_get_calendar_index_by_name (IMCX *imcx, const char *calendar_name, unsigned long *calendar_index);
 
 /**
  * Initializes main struct (IMCX), contains the calendars and control variables.
@@ -40,7 +42,7 @@ int cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_cal
  * @param imcx Pointer to an allocated IMCX struct.
  * @param calendar_id Calendar to initialize (contained in the IMCX struct).
  * @param entry_size Count of entries to allocate.
- * @return RET_ERROR_INVALID_PARAM = Calendar Id is 0 (or negative?). If using Index, add 1 to the value.
+ * @return RET_ERROR_INVALID_PARAM = Calendar Id is 0 (or negative?). If using Index, add 1 to the calendar_id.
  *         RET_ERROR_CANNOT_ALLOCATE = Cannot Allocate Calendar Entries.
  *         RET_ERROR_UNSUPPORTED_OP = Cache already finished, call invalidate to use init again.
  *         RET_SUCCESS = SUCCESS.

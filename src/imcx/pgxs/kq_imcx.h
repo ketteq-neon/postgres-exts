@@ -32,6 +32,8 @@
 #include <funcapi.h>
 #include "storage/shmem.h"
 #include "storage/lwlock.h"
+#include "storage/ipc.h"
+
 // IMCX Includes
 #include "../src/common.h"
 #include "../src/common/util.h"

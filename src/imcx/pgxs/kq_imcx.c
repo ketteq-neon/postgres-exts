@@ -4,6 +4,8 @@
 
 #include "kq_imcx.h"
 
+static shmem_startup_hook_type prev_shmem_startup_hook = NULL;
+
 typedef struct {
 	AttInMetadata *p_metadata;
 	Tuplestorestate *tuplestorestate;
@@ -43,6 +45,7 @@ typedef struct {
 
 IMCXSharedMemory *shared_memory_ptr;
 IMCX *imcx_ptr;
+HTAB * imcx_calendar_name_hashtable;
 
 char *q1 = QUERY_GET_CAL_MIN_MAX_ID;
 char *q2 = QUERY_GET_CAL_ENTRY_COUNT;
@@ -86,9 +89,12 @@ void init_gucs ()
 
 void init_shared_memory ()
 {
+  LWLockAcquire (AddinShmemInitLock, LW_EXCLUSIVE);
+  if (!LWLockHeldByMe (AddinShmemInitLock)) {
+	  ereport(ERROR, errmsg("Cannot acquire AddinShmemInitLock"));
+  }
   bool shared_memory_found;
   bool imcx_found;
-  LWLockAcquire (AddinShmemInitLock, LW_EXCLUSIVE);
   RequestAddinShmemSpace ((size_t)SHARED_MEMORY_DEF); // 1 GB
   shared_memory_ptr = ShmemInitStruct ("IMCXSharedMemory", sizeof (IMCXSharedMemory), &shared_memory_found);
   imcx_ptr = ShmemInitStruct ("IMCX", sizeof (IMCX), &imcx_found);
@@ -116,10 +122,14 @@ void load_cache_concrete ()
 	{
 	  return; // Do nothing if the cache is already filled
 	}
-  LWLockAcquire (&shared_memory_ptr->lock, LW_EXCLUSIVE);
-  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
-	{
-	  ereport(ERROR, errmsg ("Cannot acquire Exclusive Write Lock."));
+//  LWLockAcquire (&shared_memory_ptr->lock, LW_EXCLUSIVE);
+//  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
+//	{
+//	  ereport(ERROR, errmsg ("Cannot acquire Exclusive Write Lock."));
+//	}
+  LWLockAcquire (AddinShmemInitLock, LW_EXCLUSIVE);
+  if (!LWLockHeldByMe (AddinShmemInitLock)) {
+	  ereport(ERROR, errmsg("Cannot acquire AddinShmemInitLock"));
 	}
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Acquired."));
   // Vars
@@ -223,7 +233,10 @@ void load_cache_concrete ()
 		  calendar_entry_count
 	  ));
 	  // Add The Calendar Name
-	  pg_set_calendar_name (imcx_ptr, calendar_id - 1, calendar_name);
+	  int set_name_result = pg_set_calendar_name (imcx_ptr, calendar_id - 1, calendar_name);
+	  if (set_name_result != RET_SUCCESS) {
+		  ereport(ERROR, errmsg ("Cannot set '%s' as name for calendar id '%lu'", calendar_name, calendar_id));
+	  }
 	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Calendar Name '%s' Set", calendar_name));
 	}
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Executing Q3"));
@@ -275,7 +288,8 @@ void load_cache_concrete ()
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Q3: Cached %" PRIu64 " slices in total.", SPI_processed));
   SPI_finish ();
   cache_finish (imcx_ptr);
-  LWLockRelease (&shared_memory_ptr->lock);
+//  LWLockRelease (&shared_memory_ptr->lock);
+  LWLockRelease (AddinShmemInitLock);
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Released."));
   ereport(INFO, errmsg ("Slices Loaded Into Cache."));
 }
@@ -342,7 +356,7 @@ Datum calendar_info (PG_FUNCTION_ARGS)
   TupleDescInitEntry (tupleDesc,
 					  (AttrNumber)1, "property", TEXTOID, -1, 0);
   TupleDescInitEntry (tupleDesc,
-					  (AttrNumber)2, "value", TEXTOID, -1, 0);
+					  (AttrNumber)2, "calendar_id", TEXTOID, -1, 0);
 
   tuplestorestate = tuplestore_begin_heap (true, false, work_mem); // Create TupleStore
   pInfo->returnMode = SFRM_Materialize;
@@ -401,7 +415,7 @@ Datum calendar_invalidate (PG_FUNCTION_ARGS)
 
   tuple_desc = CreateTemplateTupleDesc (1);
   TupleDescInitEntry (tuple_desc,
-					  (AttrNumber)1, "value", TEXTOID, -1, 0);
+					  (AttrNumber)1, "calendar_id", TEXTOID, -1, 0);
 
   tuplestorestate = tuplestore_begin_heap (true, false, work_mem);
   p_return_set_info->returnMode = SFRM_Materialize;
@@ -420,26 +434,26 @@ Datum calendar_invalidate (PG_FUNCTION_ARGS)
   return (Datum)0;
 }
 
-void report_names (gpointer _key, gpointer _value, gpointer _user_data)
-{
-  char *key = _key;
-  char *value = _value;
-  TupleData *tupleData = (TupleData *)_user_data;
-  add_row_to_2_col_tuple (tupleData->p_metadata, tupleData->tuplestorestate,
-						  key,
-						  value);
-}
-
-void get_name (gpointer _key, gpointer _value, gpointer _user_data)
-{
-  char *key = (char *)_key;
-  const char *value = (const char *)_value;
-  GetNameData *user = _user_data;
-  if (strcmp (user->search_id, value) == 0)
-	{
-	  user->name = key;
-	}
-}
+//void report_names (gpointer _key, gpointer _value, gpointer _user_data)
+//{
+//  char *key = _key;
+//  char *calendar_id = _value;
+//  TupleData *tupleData = (TupleData *)_user_data;
+//  add_row_to_2_col_tuple (tupleData->p_metadata, tupleData->tuplestorestate,
+//						  key,
+//						  calendar_id);
+//}
+//
+//void get_name (gpointer _key, gpointer _value, gpointer _user_data)
+//{
+//  char *key = (char *)_key;
+//  const char *calendar_id = (const char *)_value;
+//  GetNameData *user = _user_data;
+//  if (strcmp (user->search_id, calendar_id) == 0)
+//	{
+//	  user->name = key;
+//	}
+//}
 
 int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallInfo fcinfo)
 {
@@ -473,7 +487,7 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
   TupleDescInitEntry (tuple_desc,
 					  (AttrNumber)1, "property", TEXTOID, -1, 0);
   TupleDescInitEntry (tuple_desc,
-					  (AttrNumber)2, "value", TEXTOID, -1, 0);
+					  (AttrNumber)2, "calendar_id", TEXTOID, -1, 0);
   tuplestorestate = tuplestore_begin_heap (true, false, work_mem); // Create TupleStore
   p_return_set_info->returnMode = SFRM_Materialize;
   p_return_set_info->setResult = tuplestorestate;
@@ -491,9 +505,11 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
   for (unsigned long i = 0; i < imcx_ptr->calendar_count; i++)
 	{
 	  const Calendar *curr_calendar = imcx_ptr->calendars[i];
-	  if (curr_calendar == NULL) {
-		  ereport(ERROR, errmsg ("Calendar Index '%lu' is NULL, cannot continue. Total Calendars '%lu'", i, imcx_ptr->calendar_count));
-	  }
+	  if (curr_calendar == NULL)
+		{
+		  ereport(ERROR, errmsg ("Calendar Index '%lu' is NULL, cannot continue. Total Calendars '%lu'", i, imcx_ptr
+			  ->calendar_count));
+		}
 	  if (curr_calendar->id == 0)
 		{
 		  noCalendarIdCounter++;
@@ -502,12 +518,33 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
 	  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
 							  "SliceType-Id", convert_u_long_to_str (curr_calendar->id));
 	  // -- Get The Name
-	  GetNameData getNameData;
-	  getNameData.search_id = convert_u_long_to_str (curr_calendar->id);
-	  g_hash_table_foreach (imcx_ptr->calendar_name_hashtable, get_name, &getNameData);
+	  // GetNameData getNameData;
+	  // getNameData.search_id = convert_u_long_to_str (curr_calendar->id);
+	  // g_hash_table_foreach (imcx_ptr->imcx_calendar_name_hashtable, get_name, &getNameData);
+
+	  const char * calendar_id = convert_u_long_to_str (curr_calendar->id);
+	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Trying to find name for calendar %s", calendar_id));
+	  HASH_SEQ_STATUS lookup_status;
+	  hash_seq_init (&lookup_status, imcx_ptr->pg_calendar_name_hashtable);
+	  CalendarNameEntry *name_entry = (CalendarNameEntry *) hash_seq_search (&lookup_status);
+	  while (name_entry->calendar_id != NULL)
+		{
+		  int str_compare = strcmp (name_entry->calendar_id, calendar_id);
+		  if (str_compare == 0)
+			{
+			  break;
+			}
+		  name_entry = (CalendarNameEntry *) hash_seq_search (&lookup_status);
+		}
+		if (name_entry->calendar_id == NULL) {
+			ereport(ERROR, errmsg ("Cannot find the Calendar Name for the calendar id '%lu'", curr_calendar->id));
+		}
+	  hash_seq_term (&lookup_status);
+
+
 	  // --
 	  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
-							  "   Name", getNameData.name);
+							  "   Name", name_entry->key.calendar_name);
 	  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
 							  "   Entries", convert_u_long_to_str (curr_calendar->dates_size));
 	  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
@@ -625,7 +662,7 @@ add_calendar_days_by_name (PG_FUNCTION_ARGS)
   unsigned long calendar_index = 0;
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Trying to find Calendar with name '%s'", calendar_name_str));
   int get_calendar_result =
-	  get_calendar_index_by_name (
+	  pg_get_calendar_index_by_name (
 		  imcx_ptr,
 		  calendar_name_str,
 		  &calendar_index

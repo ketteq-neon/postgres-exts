@@ -8,7 +8,12 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <glib.h>
+
 #include "postgres.h"
+#include <utils/hsearch.h>
+#include "storage/shmem.h"
+#include "common/hashfn.h"
+
 
 #define RET_SUCCESS 0 // Success.
 #define RET_ERROR -1 // Generic error.
@@ -21,6 +26,15 @@
 #define RET_ERROR_NOT_READY -8 // The Function requires a previous step before using.
 #define RET_ADD_DAYS_NEGATIVE -9
 #define RET_ADD_DAYS_POSITIVE -10
+
+typedef struct {
+	char * calendar_name;
+} CalendarNameKey;
+
+typedef struct {
+	CalendarNameKey key;
+	char * calendar_id;
+} CalendarNameEntry;
 
 /**
  *
@@ -41,6 +55,7 @@ typedef struct {
 	unsigned long entry_count; // Count of Entries (From all Calendars)
 	bool cache_filled; // Control variable set to TRUE when the `cache_finish()` function is called.
 	GHashTable * calendar_name_hashtable; // Hashtable containing the names of the Calendars
+	HTAB *pg_calendar_name_hashtable;
 } IMCX;
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_COMMON_H

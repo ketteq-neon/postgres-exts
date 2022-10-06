@@ -129,7 +129,7 @@ Show information about the extension status:
 ```
 # SELECT * FROM kq_calendar_cache_info();
 INFO:  KetteQ In-Memory Calendar Extension Loaded.
-              property              | value 
+              property              | calendar_id 
 ------------------------------------+-------
  Version                            | 0.0.0
  Cache Available                    | Yes
@@ -142,7 +142,7 @@ Show details about the cache:
 
 ```
 # SELECT * FROM kq_calendar_cache_report(false, false);
-        property        |  value  
+        property        |  calendar_id  
 ------------------------+---------
  Slices-Id Max          | 13
  Cache-Calendars Size   | 8
