@@ -9,7 +9,7 @@
 #include <sys/types.h>
 
 #include "cache.h"
-#include "../common.h"
+#include "common.h"
 
 #define PAST DATEVAL_NOBEGIN
 #define FUTURE DATEVAL_NOEND

@@ -11,7 +11,8 @@
 #endif
 // Constants
 #define TRANCHE_NAME "IMCX"
-#define SHARED_MEMORY_DEF 1024 * 1024 * 1024 // 1 GB
+//#define MAX_CALENDAR_COUNT 1024 * 1024 * 1024 // 1 GB
+#define MAX_CALENDAR_COUNT 50 // 1 GB
 #define DEF_DEBUG_LOG_LEVEL DEBUG1
 #define QUERY_GET_CAL_MIN_MAX_ID "select min(s.id), max(s.id) from ketteq.slice_type s"
 #define QUERY_GET_CAL_ENTRY_COUNT "select s.slice_type_id, count(*), (select st.\"name\" from ketteq.slice_type st where st.id = s.slice_type_id) \"name\" from ketteq.slice s group by s.slice_type_id order by s.slice_type_id asc;"
@@ -35,9 +36,9 @@
 #include "storage/ipc.h"
 
 // IMCX Includes
-#include "../src/common.h"
-#include "../src/common/util.h"
-#include "../src/calendar/cache.h"
+#include "imcx/src/include/common.h"
+#include "imcx/src/include/util.h"
+#include "imcx/src/include/cache.h"
 //
 PG_MODULE_MAGIC;
 
@@ -45,7 +46,7 @@ void _PG_init (void);
 void _PG_fini (void);
 
 void init_gucs ();
-void init_shared_memory ();
+static void init_shared_memory ();
 void load_cache_concrete ();
 
 Datum calendar_info (PG_FUNCTION_ARGS);

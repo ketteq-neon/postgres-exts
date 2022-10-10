@@ -7,13 +7,12 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-#include <glib.h>
+#include <glib-2.0/glib.h>
 
 #include "postgres.h"
 #include <utils/hsearch.h>
 #include "storage/shmem.h"
 #include "common/hashfn.h"
-
 
 #define RET_SUCCESS 0 // Success.
 #define RET_ERROR -1 // Generic error.
@@ -30,20 +29,18 @@
 #define RET_ERROR_CANNOT_ATTACH_NO_CACHE -12
 #define RET_ERROR_CANNOT_ATTACH_CAL_COUNT_TOO_BIG -13
 
-//typedef struct {
-//	char * calendar_name;
-//} CalendarNameKey;
+#define CALENDAR_NAME_MAX_LEN 90
 
 typedef struct {
-	char key[NAMEDATALEN];
-	unsigned long calendar_id;
+	char key[CALENDAR_NAME_MAX_LEN];
+	int calendar_id;
 } CalendarNameEntry;
 
 /**
  *
  */
 typedef struct {
-	unsigned long id; // Calendar ID (Same as in origin DB)
+	int id; // Calendar ID (Same as in origin DB)
 	int32 * dates; // Dates contained in the Calendar
 	unsigned long dates_size; // Count of dates.
 	int page_size; // Calculated Page Size
@@ -57,8 +54,9 @@ typedef struct {
 	unsigned long calendar_count; // Count of Calendars
 	unsigned long entry_count; // Count of Entries (From all Calendars)
 	bool cache_filled; // Control variable set to TRUE when the `cache_finish()` function is called.
-	GHashTable * calendar_name_hashtable; // Hashtable containing the names of the Calendars
 	HTAB *pg_calendar_name_hashtable;
+
+	GHashTable * calendar_name_hashtable; // Hashtable containing the names of the Calendars
 } IMCX;
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_COMMON_H

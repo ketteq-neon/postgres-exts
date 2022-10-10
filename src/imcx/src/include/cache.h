@@ -8,22 +8,22 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <glib.h>
+#include <glib-2.0/glib.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "math.h"
 #include "inttypes.h"
 
-#include "../common.h"
-#include "../common/util.h"
+#include "common.h"
+#include "util.h"
 
 #include <storage/shmem.h>
 #include <miscadmin.h>
 
 int pg_cache_attach (IMCX *imcx);
 int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_calendar_id);
-int pg_calendar_init (IMCX *imcx, unsigned long calendar_id, unsigned long entry_size);
+int pg_calendar_init (IMCX *imcx, int calendar_id, unsigned long entry_size);
 int pg_set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *calendar_name);
 int pg_get_calendar_index_by_name (IMCX *imcx, const char *calendar_name, unsigned long *calendar_index);
 

@@ -4,7 +4,7 @@
 
 
 
-#include "cache.h"
+#include "imcx/src/include/cache.h"
 
 // Private Functions
 
@@ -18,50 +18,56 @@ void glib_value_free (gpointer data)
   free (data);
 }
 
-int pg_cache_attach (IMCX *imcx)
-{
-  if (!imcx->cache_filled)
-	{
-	  return RET_ERROR_CANNOT_ATTACH_NO_CACHE;
-	}
-  for (unsigned long calendar_idx = 0; calendar_idx < imcx->calendar_count; calendar_idx++)
-	{
-	  bool cal_found;
-	  int num_len = snprintf (NULL, 0, "KQ_IMCX_CAL_%ld", calendar_idx);
-	  char *id_str = malloc ((num_len + 1) * sizeof (char));
-	  snprintf (id_str, num_len + 1, "KQ_IMCX_CAL_%ld", calendar_idx);
-	  imcx->calendars[calendar_idx] = ShmemInitStruct (id_str, sizeof (Calendar), &cal_found);
-	  if (!cal_found)
-		{
-		  return RET_ERROR_CANNOT_ATTACH_SHMEM;
-		}
-	}
-
-  if (imcx->calendar_count > LONG_MAX)
-	{
-	  // Calendar_count is too big.
-	  return RET_ERROR_CANNOT_ATTACH_CAL_COUNT_TOO_BIG;
-	}
-
-  long l_calendar_count = imcx->calendar_count;
-
-  HASHCTL info;
-  memset (&info, 0, sizeof (info));
-  info.keysize = NAMEDATALEN;
-  info.entrysize = NAMEDATALEN;
-  int32 hash_flags = (HASH_ELEM | HASH_STRINGS);
-  imcx->pg_calendar_name_hashtable = ShmemInitHash ("KQ_IMCX_CAL_NAMES_SMHTAB",
-													l_calendar_count,
-													l_calendar_count,
-													&info,
-													hash_flags);
-  if (imcx->pg_calendar_name_hashtable == NULL)
-	{
-	  return RET_ERROR_CANNOT_ALLOCATE;
-	}
-
-  return RET_SUCCESS;
-}
+//int pg_cache_attach (IMCX *imcx)
+//{
+//  ereport(DEBUG1, errmsg (
+//	  "CalendarCount: %lu, EntryCount: %lu, Cache Filled: %d",
+//	  imcx->calendar_count,
+//	  imcx->entry_count,
+//	  imcx->cache_filled
+//	  ));
+//
+//  if (!imcx->cache_filled)
+//	{
+//	  return RET_ERROR_CANNOT_ATTACH_NO_CACHE;
+//	}
+//  for (unsigned long calendar_idx = 0; calendar_idx < imcx->calendar_count; calendar_idx++)
+//	{
+//	  bool cal_found;
+//	  char id_str[128];
+//	  snprintf (id_str, sizeof(id_str), "KQ_IMCX_CAL_%ld", calendar_idx);
+//	  imcx->calendars[calendar_idx] = ShmemInitStruct (id_str, sizeof (Calendar), &cal_found);
+//	  if (!cal_found)
+//		{
+//		  return RET_ERROR_CANNOT_ATTACH_SHMEM;
+//		}
+//	}
+//
+//  if (imcx->calendar_count > LONG_MAX)
+//	{
+//	  // Calendar_count is too big.
+//	  return RET_ERROR_CANNOT_ATTACH_CAL_COUNT_TOO_BIG;
+//	}
+//
+//  long l_calendar_count = imcx->calendar_count;
+//
+//  HASHCTL info;
+//  memset (&info, 0, sizeof (info));
+//  info.keysize = CALENDAR_NAME_MAX_LEN;
+//  info.entrysize = sizeof (CalendarNameEntry);
+//  int32 hash_flags = (HASH_ELEM | HASH_STRINGS);
+//  imcx->pg_calendar_name_hashtable = ShmemInitHash ("KQ_IMCX_CAL_NAMES_SMHTAB",
+//													l_calendar_count,
+//													l_calendar_count,
+//													&info,
+//													hash_flags);
+//  if (imcx->pg_calendar_name_hashtable == NULL)
+//	{
+//	  return RET_ERROR_CANNOT_ALLOCATE;
+//	}
+//
+//  return RET_SUCCESS;
+//}
 
 int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_calendar_id)
 {
@@ -70,7 +76,7 @@ int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_
 	  return RET_ERROR_MIN_GT_MAX;
 	}
   unsigned long calendar_count = max_calendar_id - min_calendar_id + 1;
-  imcx->calendars = (Calendar **)ShmemAlloc (calendar_count * sizeof (Calendar *));
+  imcx->calendars = (Calendar **)ShmemAlloc (calendar_count * 1000 * sizeof (Calendar *));
   if (imcx->calendars == NULL)
 	{
 	  return RET_ERROR_CANNOT_ALLOCATE;
@@ -78,11 +84,12 @@ int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_
   memset (imcx->calendars, 0, calendar_count * sizeof (Calendar *));
   for (unsigned long calendar_idx = 0; calendar_idx < calendar_count; calendar_idx++)
 	{
-	  bool cal_found;
-	  int num_len = snprintf (NULL, 0, "KQ_IMCX_CAL_%ld", calendar_idx);
-	  char *id_str = malloc ((num_len + 1) * sizeof (char));
-	  snprintf (id_str, num_len + 1, "KQ_IMCX_CAL_%ld", calendar_idx);
-	  imcx->calendars[calendar_idx] = ShmemInitStruct (id_str, sizeof (Calendar), &cal_found);
+//	  bool cal_found;
+//	  char id_str[128];
+//	  snprintf (id_str, sizeof(id_str), "KQ_IMCX_CAL_%ld", calendar_idx);
+	  // Any struct should be allocated using ShmemInitStruct
+//	  imcx->calendars[calendar_idx] = ShmemInitStruct (id_str, sizeof (Calendar), &cal_found);
+	  imcx->calendars[calendar_idx] = ShmemAlloc (sizeof (Calendar));
 	  memset (imcx->calendars[calendar_idx], 0, sizeof (Calendar));
 	  if (imcx->calendars[calendar_idx] == NULL)
 		{
@@ -102,12 +109,9 @@ int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_
   //
   HASHCTL info;
   memset (&info, 0, sizeof (info));
-  info.keysize = NAMEDATALEN;
-  info.entrysize = NAMEDATALEN;
-//  info.hcxt = CurrentMemoryContext;
-  // info.hash = tag_hash;
+  info.keysize = CALENDAR_NAME_MAX_LEN;
+  info.entrysize = sizeof (CalendarNameEntry);
   int32 hash_flags = (HASH_ELEM | HASH_STRINGS);
-//  int32 hash_flags = (HASH_ELEM | HASH_CONTEXT | HASH_STRINGS);
 
   imcx->pg_calendar_name_hashtable = ShmemInitHash ("KQ_IMCX_CAL_NAMES_SMHTAB",
 													l_calendar_count,
@@ -115,54 +119,50 @@ int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_
 													&info,
 													hash_flags);
 
-//  imcx->pg_calendar_name_hashtable = hash_create("KQ_IMCX_CAL_NAMES_HTAB",
-//													l_calendar_count,
-//													&info,
-//													hash_flags);
   if (imcx->pg_calendar_name_hashtable == NULL)
 	{
 	  return RET_ERROR_CANNOT_ALLOCATE;
 	}
-  imcx->calendar_name_hashtable = NULL;
+  imcx->calendar_name_hashtable = NULL; // TODO: To be removed.
   //
   return RET_SUCCESS;
 }
 
-int cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_calendar_id)
-{
-  if (min_calendar_id > max_calendar_id)
-	{
-	  return RET_ERROR_MIN_GT_MAX;
-	}
-  unsigned long calendar_count = max_calendar_id - min_calendar_id + 1;
-  imcx->calendars = (Calendar **)calloc (calendar_count, sizeof (Calendar *));
-  if (imcx->calendars == NULL)
-	{
-	  return RET_ERROR_CANNOT_ALLOCATE;
-	}
-  for (unsigned long calendar_idx = 0; calendar_idx < calendar_count; calendar_idx++)
-	{
-	  imcx->calendars[calendar_idx] = (Calendar *)calloc (1, sizeof (Calendar));
-	  if (imcx->calendars[calendar_idx] == NULL)
-		{
-		  return RET_ERROR_CANNOT_ALLOCATE;
-		}
-	}
-  //
-  imcx->calendar_count = calendar_count;
-  imcx->entry_count = 0;
-  imcx->pg_calendar_name_hashtable = NULL;
-  // Allocate the HashMap that will store the calendar names (str). This is a dynamic map.
-  imcx->calendar_name_hashtable = g_hash_table_new_full
-	  (g_str_hash,
-	   g_str_equal,
-	   glib_value_free,
-	   glib_value_free);
-  //
-  return RET_SUCCESS;
-}
+//int cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_calendar_id)
+//{
+//  if (min_calendar_id > max_calendar_id)
+//	{
+//	  return RET_ERROR_MIN_GT_MAX;
+//	}
+//  unsigned long calendar_count = max_calendar_id - min_calendar_id + 1;
+//  imcx->calendars = (Calendar **)calloc (calendar_count, sizeof (Calendar *));
+//  if (imcx->calendars == NULL)
+//	{
+//	  return RET_ERROR_CANNOT_ALLOCATE;
+//	}
+//  for (unsigned long calendar_idx = 0; calendar_idx < calendar_count; calendar_idx++)
+//	{
+//	  imcx->calendars[calendar_idx] = (Calendar *)calloc (1, sizeof (Calendar));
+//	  if (imcx->calendars[calendar_idx] == NULL)
+//		{
+//		  return RET_ERROR_CANNOT_ALLOCATE;
+//		}
+//	}
+//  //
+//  imcx->calendar_count = calendar_count;
+//  imcx->entry_count = 0;
+//  imcx->pg_calendar_name_hashtable = NULL;
+//  // Allocate the HashMap that will store the calendar names (str). This is a dynamic map.
+//  imcx->calendar_name_hashtable = g_hash_table_new_full
+//	  (g_str_hash,
+//	   g_str_equal,
+//	   glib_value_free,
+//	   glib_value_free);
+//  //
+//  return RET_SUCCESS;
+//}
 
-int pg_calendar_init (IMCX *imcx, unsigned long calendar_id, unsigned long entry_size)
+int pg_calendar_init (IMCX *imcx, int calendar_id, unsigned long entry_size)
 {
   if (imcx->cache_filled)
 	{
@@ -185,36 +185,37 @@ int pg_calendar_init (IMCX *imcx, unsigned long calendar_id, unsigned long entry
   return RET_SUCCESS;
 }
 
-int calendar_init (IMCX *imcx, unsigned long calendar_id, unsigned long entry_size)
-{
-  if (imcx->cache_filled)
-	{
-	  return RET_ERROR_UNSUPPORTED_OP;
-	}
-  if (calendar_id == 0)
-	{
-	  return RET_ERROR_INVALID_PARAM;
-	}
-  Calendar *calendar = imcx->calendars[calendar_id - 1];
-  calendar->dates = malloc (entry_size * sizeof (int));
-  if (calendar->dates == NULL)
-	{
-	  return RET_ERROR_CANNOT_ALLOCATE;
-	}
-  calendar->id = calendar_id;
-  calendar->dates_size = entry_size;
-  imcx->entry_count += entry_size;
-  return RET_SUCCESS;
-}
+//int calendar_init (IMCX *imcx, unsigned long calendar_id, unsigned long entry_size)
+//{
+//  if (imcx->cache_filled)
+//	{
+//	  return RET_ERROR_UNSUPPORTED_OP;
+//	}
+//  if (calendar_id == 0)
+//	{
+//	  return RET_ERROR_INVALID_PARAM;
+//	}
+//  Calendar *calendar = imcx->calendars[calendar_id - 1];
+//  calendar->dates = malloc (entry_size * sizeof (int));
+//  if (calendar->dates == NULL)
+//	{
+//	  return RET_ERROR_CANNOT_ALLOCATE;
+//	}
+//  calendar->id = calendar_id;
+//  calendar->dates_size = entry_size;
+//  imcx->entry_count += entry_size;
+//  return RET_SUCCESS;
+//}
 
 int pg_set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *calendar_name)
 {
-  Calendar calendar = *imcx->calendars[calendar_index];
+  Calendar *calendar = imcx->calendars[calendar_index];
 
   unsigned long calendar_name_len = strlen (calendar_name);
   char *calendar_name_ll = ShmemAlloc ((calendar_name_len + 1) * sizeof (char));
-  snprintf (calendar_name_ll, calendar_name_len + 1, "%s", calendar_name);
-  str_to_lowercase_self (calendar_name_ll);
+  strcpy (calendar_name_ll, calendar_name);
+
+  str_to_lowercase_self (calendar_name_ll);  // TODO: Move to query stage
 
   bool found = false;
   CalendarNameEntry *entry = hash_search (
@@ -227,13 +228,9 @@ int pg_set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *
 	{
 	  return RET_ERROR_UNSUPPORTED_OP;
 	}
-  int num_len = snprintf (NULL, 0, "%ld", calendar.id);
-  char *calendar_id_tmp = ShmemAlloc ((num_len + 1) * sizeof (char));
-  snprintf (calendar_id_tmp, num_len + 1, "%ld", calendar.id);
-  strncpy (entry->key, calendar_name, sizeof (entry->key) - 1);
-  entry->calendar_id = calendar.id;
-  Assert(entry->calendar_id == calendar.id);
-  ereport(DEBUG1, errmsg ("Calendar name for calendar id = '%ld' set to '%s'", calendar.id, entry->key));
+  strcpy (entry->key, calendar_name);
+  entry->calendar_id = calendar->id;
+  ereport(DEBUG1, errmsg ("Calendar name for calendar id = '%d' set to '%s'", calendar->id, entry->key));
   return RET_SUCCESS;
 }
 
@@ -241,9 +238,9 @@ void set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *ca
 {
   Calendar calendar = *imcx->calendars[calendar_index];
   // Convert Int to Str
-  int num_len = snprintf (NULL, 0, "%ld", calendar.id);
+  int num_len = snprintf (NULL, 0, "%d", calendar.id);
   char *id_str = malloc ((num_len + 1) * sizeof (char));
-  snprintf (id_str, num_len + 1, "%ld", calendar.id);
+  snprintf (id_str, num_len + 1, "%d", calendar.id);
   //
   // TODO: Check how to save the id calendar_id as Int and not Str (char*) -> similar to IntHashMap
   char *calendar_name_ll = strdup (calendar_name);
@@ -308,7 +305,8 @@ int init_page_size (Calendar *calendar)
   long page_end_index = calendar->dates[calendar->dates_size - 1] / calendar->page_size;
   calendar->page_map_size = page_end_index - calendar->first_page_offset + 1;
   // Assign memory and set the values to 0.
-  calendar->page_map = calloc (calendar->page_map_size, sizeof (long));
+  calendar->page_map = ShmemAlloc (calendar->page_map_size * sizeof (long));
+  memset (calendar->page_map, 0, calendar->page_map_size * sizeof (long));
   // Calculate Page Map
   int prev_page_index = 0;
   // int prev_date = -1; // This will be required if we check that the array is ordered.
@@ -344,7 +342,7 @@ int add_calendar_days (
 	{
 	  return RET_ERROR_NOT_READY;
 	}
-  Calendar calendar = *imcx->calendars[calendar_index];
+  Calendar calendar = *imcx->calendars[calendar_index]; //
   // Find the interval -> the closest date index from the left of the input_date in the calendar
   long prev_date_index = get_closest_index_from_left (input_date, calendar);
   // Now try to get the corresponding date of requested interval
