@@ -17,7 +17,7 @@ CREATE FUNCTION kq_invalidate_calendar_cache()
 STRICT
     LANGUAGE c AS 'MODULE_PATHNAME', 'calendar_invalidate';
 
--- Displays as Log Messages the contents of the cache.
+-- Displays the contents of the cache.
 CREATE FUNCTION kq_calendar_cache_report(boolean, boolean)
     RETURNS TABLE ("property" text, "calendar_id" text)
 STRICT
