@@ -13,7 +13,7 @@ STRICT
 
 -- Clears the cache (and frees memory)
 CREATE FUNCTION kq_invalidate_calendar_cache()
-    RETURNS TABLE ("calendar_id" text)
+    RETURNS void
 STRICT
     LANGUAGE c AS 'MODULE_PATHNAME', 'calendar_invalidate';
 

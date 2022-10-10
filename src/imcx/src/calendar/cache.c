@@ -4,16 +4,6 @@
 
 #include "imcx/src/include/cache.h"
 
-/**
- * Support function for deallocating hash map pointers (keys and values).
- * Should not be exported.
- * @param data
- */
-void glib_value_free (gpointer data)
-{
-  free (data);
-}
-
 int pg_cache_attach (IMCX *imcx)
 {
   // Attach Names Hashtable
@@ -83,16 +73,18 @@ int pg_cache_init (IMCX *imcx, int min_calendar_id, int max_calendar_id)
   return RET_SUCCESS;
 }
 
-Calendar * pg_get_calendar(IMCX * imcx, int calendar_id) {
+Calendar *pg_get_calendar (IMCX *imcx, int calendar_id)
+{
   ereport(DEBUG2, errmsg ("CalendarId=%d, MinCalendarId=%d", calendar_id, imcx->min_calendar_id));
   return imcx->calendars[calendar_id - imcx->min_calendar_id];
 }
 
-int32 get_calendar_index(IMCX * imcx, int calendar_id) {
+int32 get_calendar_index (IMCX *imcx, int calendar_id)
+{
   return calendar_id - imcx->min_calendar_id;
 }
 
-int pg_calendar_init (Calendar * calendar, int calendar_id, unsigned long entry_size, unsigned long * entry_count_ptr)
+int pg_calendar_init (Calendar *calendar, int calendar_id, unsigned long entry_size, unsigned long *entry_count_ptr)
 {
   calendar->dates = (int *)ShmemAlloc (entry_size * sizeof (int32));
   if (calendar->dates == NULL)
@@ -106,9 +98,7 @@ int pg_calendar_init (Calendar * calendar, int calendar_id, unsigned long entry_
   return RET_SUCCESS;
 }
 
-
-
-int pg_set_calendar_name (IMCX *imcx, Calendar * calendar, const char *calendar_name)
+int pg_set_calendar_name (IMCX *imcx, Calendar *calendar, const char *calendar_name)
 {
   // Allocate Key
   char *key_calendar_name = ShmemAlloc ((strlen (calendar_name) + 1) * sizeof (char));
@@ -199,7 +189,7 @@ void cache_finish (IMCX *imcx)
 
 int add_calendar_days (
 	const IMCX *imcx,
-	Calendar * calendar,
+	Calendar *calendar,
 	long input_date,
 	long interval,
 	int32 *result_date,
@@ -258,24 +248,21 @@ int cache_invalidate (IMCX *imcx)
 	{
 	  return RET_ERROR;
 	}
-
-	// Free Name HashTable
+  // Free Name HashTable
   HASH_SEQ_STATUS status;
   void *entry = NULL;
-  hash_seq_init(&status, imcx->pg_calendar_name_hashtable);
-  while ((entry = hash_seq_search(&status)) != 0)
+  hash_seq_init (&status, imcx->pg_calendar_name_hashtable);
+  while ((entry = hash_seq_search (&status)) != 0)
 	{
 	  bool found = false;
-	  hash_search(imcx->pg_calendar_name_hashtable, entry, HASH_REMOVE, &found);
+	  hash_search (imcx->pg_calendar_name_hashtable, entry, HASH_REMOVE, &found);
 	  Assert(found);
 	}
-  // Free Entries 1st
+  // Reset Entries
   for (int cc = 0; cc < imcx->calendar_count; cc++)
 	{
-	  free (imcx->calendars[cc]->dates);
+	  imcx->calendars[cc]->dates = 0;
 	}
-  // Then Free Store
-  free (imcx->calendars);
   // Reset Control Vars
   imcx->calendars = NULL;
   imcx->calendar_count = 0;

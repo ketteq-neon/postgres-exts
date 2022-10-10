@@ -116,6 +116,7 @@ void load_cache_concrete ()
 {
   if (imcx_ptr->cache_filled)
 	{
+	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Cache already filled. Skipping slice loading."));
 	  return; // Do nothing if the cache is already filled
 	}
   LWLockAcquire (AddinShmemInitLock, LW_EXCLUSIVE);
@@ -391,52 +392,28 @@ PG_FUNCTION_INFO_V1(calendar_invalidate);
 
 Datum calendar_invalidate (PG_FUNCTION_ARGS)
 {
-  load_cache_concrete ();
-  LWLockAcquire (&shared_memory_ptr->lock, LW_EXCLUSIVE);
-  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
+  if (!imcx_ptr->cache_filled) {
+	  ereport(ERROR, errmsg ("Cache cannot be invalidated, is not yet loaded."));
+  }
+  LWLockAcquire (AddinShmemInitLock, LW_EXCLUSIVE);
+  if (!LWLockHeldByMe (AddinShmemInitLock))
 	{
 	  ereport(ERROR, errmsg ("Cannot Acquire Exclusive Write Lock."));
 	}
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Acquired."));
-
-  ReturnSetInfo *p_return_set_info = (ReturnSetInfo *)fcinfo->resultinfo;
-  Tuplestorestate *tuplestorestate;
-  AttInMetadata *p_metadata;
-  TupleDesc tuple_desc;
-
-  /* check to see if caller supports us returning a tuplestorestate */
-  if (p_return_set_info == NULL || !IsA(p_return_set_info, ReturnSetInfo))
-	ereport(ERROR,
-			(errcode (ERRCODE_FEATURE_NOT_SUPPORTED),
-				errmsg ("set-valued function called in context that cannot accept a set")));
-  if (!(p_return_set_info->allowedModes & SFRM_Materialize))
-	ereport(ERROR,
-			(errcode (ERRCODE_SYNTAX_ERROR),
-				errmsg ("materialize mode required, but it is not allowed in this context")));
-
-  int ret = cache_invalidate (imcx_ptr);
-  LWLockRelease (&shared_memory_ptr->lock);
+  int invalidate_result = cache_invalidate (imcx_ptr);
+  LWLockRelease (AddinShmemInitLock);
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Released."));
-
-  tuple_desc = CreateTemplateTupleDesc (1);
-  TupleDescInitEntry (tuple_desc,
-					  (AttrNumber)1, "calendar_id", TEXTOID, -1, 0);
-
-  tuplestorestate = tuplestore_begin_heap (true, false, work_mem);
-  p_return_set_info->returnMode = SFRM_Materialize;
-  p_return_set_info->setResult = tuplestorestate;
-  p_return_set_info->setDesc = tuple_desc;
-  p_metadata = TupleDescGetAttInMetadata (tuple_desc);
-  if (ret == 0)
+  if (invalidate_result == 0)
 	{
-	  load_cache_concrete ();
-	  add_row_to_1_col_tuple (p_metadata, tuplestorestate, "Cache Invalidated");
+	  ereport(INFO, errmsg ("Cache Invalidated Successfully"));
 	}
   else
 	{
-	  add_row_to_1_col_tuple (p_metadata, tuplestorestate, "Error Invalidating the Cache");
+	  ereport(INFO, errmsg ("Cache Cannot be Invalidated, Error Code: %d", invalidate_result));
 	}
-  return (Datum)0;
+
+	PG_RETURN_VOID();
 }
 
 static CalendarNameEntry *find_calendar_name_entry (HTAB *htab, int calendar_id)

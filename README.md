@@ -31,12 +31,16 @@ hosts is not supported.
     ```bash
     mkdir build 
     ```
-6. CD to the newly created build folder and generate Makefiles using `cmake`
+6. CD to the newly created build folder and generate Makefiles using `cmake`:
     
     ```bash
     cd build
     cmake .. 
     ```
+   
+   You can use `cmake -DCMAKE_BUILD_TYPE=Debug` to include debug symbols in the output binary. This will disable all optimizations of the C compiler.
+
+
 7. Run `make` to create the extension shared object.
 
     ```bash
@@ -47,9 +51,9 @@ hosts is not supported.
 
 # Extensions And Features
 
-| Extension Name                       | Create Extension Name | Features                                                                                                                                                 |
-|--------------------------------------|-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| In-Memory Calendar Extension (IMCX)  | `kq_imcx`             | - Uses GHashTable to store slices cache in memory.<br/> - Uses the PostgreSQL Server's memory.<br/> - Provides very fast calendar calculation functions. |
+| Extension Name                       | Create Extension Name | Features                                                                                                                                 |
+|--------------------------------------|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| In-Memory Calendar Extension (IMCX)  | `kq_imcx`             | - Stores cache dynamically using PostgreSQL Shared Memory.<br/> - Provides very fast calendar calculation functions.<br/> - Thread safe. |
 
 # Installation
 
