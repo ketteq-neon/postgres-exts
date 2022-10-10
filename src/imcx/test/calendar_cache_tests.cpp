@@ -2,7 +2,9 @@
  * IMCX Unit Tests
  * (C) KetteQ
  *
- * Main tests
+ * Standalone Tests
+ *
+ * TODO: Move to Testgres, or find out how to make Gtest work with Postgres...
  */
 
 // Includes

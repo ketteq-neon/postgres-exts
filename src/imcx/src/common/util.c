@@ -9,15 +9,18 @@
 #include <malloc.h>
 #include <math.h>
 #include <string.h>
+#include <stdbool.h>
 
 char *convert_double_to_str (double number, int precision)
 {
   char *format_str;
+  bool dynamic_template = false;
   if (rint (number) != number)
 	{
 	  int precision_len = snprintf (NULL, 0, "%d", precision);
 	  format_str = malloc ((precision_len + 3 + 1) * sizeof (char));
 	  sprintf (format_str, "%%.%df", precision);
+	  dynamic_template = true;
 	}
   else
 	{
@@ -27,6 +30,10 @@ char *convert_double_to_str (double number, int precision)
   int return_len = snprintf (NULL, 0, format_str, number);
   return_str = malloc ((return_len + 1) * sizeof (char));
   snprintf (return_str, return_len + 1, format_str, number);
+  if (dynamic_template)
+	{
+	  free (format_str);
+	}
   return return_str;
 }
 

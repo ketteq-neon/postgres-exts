@@ -53,7 +53,7 @@ typedef struct {
 	Calendar ** calendars; // Calendars contained in the ICMX struct
 	unsigned long calendar_count; // Count of Calendars
 	unsigned long entry_count; // Count of Entries (From all Calendars)
-	int min_calendar_id;
+	int min_calendar_id; // Min calendar ID, used as offset to set the calendar indices
 	bool cache_filled; // Control variable set to TRUE when the `cache_finish()` function is called.
 	HTAB *pg_calendar_name_hashtable;
 } IMCX;
