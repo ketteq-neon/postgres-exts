@@ -28,8 +28,8 @@ void _PG_init (void)
 				  "that 'kq_imcx' should be at the beginning of "
 				  "shared_preload_libraries.")));
 	}
-  // init_shared_memory ();
-  // init_gucs ();
+   init_shared_memory ();
+   init_gucs ();
   ereport(INFO, errmsg ("KetteQ In-Memory Calendar Extension Loaded."));
 }
 
@@ -295,7 +295,8 @@ void load_cache_concrete ()
 	}
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Q3: Cached %" PRIu64 " slices in total.", SPI_processed));
   SPI_finish ();
-  cache_finish (imcx_ptr);
+  // cache_finish (imcx_ptr);
+  imcx_ptr->cache_filled = true;
 //  LWLockRelease (&shared_memory_ptr->lock);
   LWLockRelease (AddinShmemInitLock);
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Released."));
