@@ -30,6 +30,8 @@
 #define RET_ERROR_CANNOT_ATTACH_CAL_COUNT_TOO_BIG -13
 
 #define CALENDAR_NAME_MAX_LEN 90
+#define CALENDAR_NAMES_HASH_FLAGS (HASH_ELEM | HASH_STRINGS)
+#define CALENDAR_NAMES_HASH_NAME "KQ_IMCX_CAL_NAMES_SMHTAB"
 
 typedef struct {
 	char key[CALENDAR_NAME_MAX_LEN];
@@ -55,8 +57,6 @@ typedef struct {
 	unsigned long entry_count; // Count of Entries (From all Calendars)
 	bool cache_filled; // Control variable set to TRUE when the `cache_finish()` function is called.
 	HTAB *pg_calendar_name_hashtable;
-
-	GHashTable * calendar_name_hashtable; // Hashtable containing the names of the Calendars
 } IMCX;
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_COMMON_H

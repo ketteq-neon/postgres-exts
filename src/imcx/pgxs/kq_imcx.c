@@ -116,7 +116,7 @@ static void init_shared_memory ()
 	}
   else
 	{
-	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Shared memory attached."));
+//	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Shared memory attached."));
 	  ereport(DEBUG1, errmsg (
 		  "CalendarCount: %lu, EntryCount: %lu, Cache Filled: %d, Calendar[0]->dates[0]: %d",
 		  imcx_ptr->calendar_count,
@@ -124,27 +124,11 @@ static void init_shared_memory ()
 		  imcx_ptr->cache_filled,
 		  imcx_ptr->calendars[0]->dates[0]
 	  ));
-
-	  HASHCTL info;
-	  memset (&info, 0, sizeof (info));
-	  info.keysize = CALENDAR_NAME_MAX_LEN;
-	  info.entrysize = sizeof (CalendarNameEntry);
-	  int32 hash_flags = (HASH_ELEM | HASH_STRINGS);
-
-	  imcx_ptr->pg_calendar_name_hashtable = ShmemInitHash ("KQ_IMCX_CAL_NAMES_SMHTAB",
-															(long)imcx_ptr->calendar_count,
-															(long)imcx_ptr->calendar_count,
-															&info,
-															hash_flags);
-
-	  if (imcx_ptr->pg_calendar_name_hashtable == NULL)
-		{
-		  ereport(DEBUG1, errmsg ("Hashtable is Null"));
-		}
-
-	  long entries = hash_get_num_entries (imcx_ptr->pg_calendar_name_hashtable); // <- fails
-
-	  ereport(DEBUG1, errmsg ("Entries in Hashtable: %ld", entries));
+	  int attach_result = pg_cache_attach (imcx_ptr);
+	  if (attach_result != RET_SUCCESS) {
+		  ereport(ERROR, errmsg ("Cannot Attach Names HashTable, Error Code: %d", attach_result));
+	  }
+	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Shared memory attached."));
 	}
   LWLockRelease (AddinShmemInitLock);
   ereport(INFO, errmsg ("Initialized Shared Memory."));

@@ -102,7 +102,7 @@ void cache_finish (IMCX *imcx);
  */
 int add_calendar_days (
 	const IMCX *imcx,
-	unsigned long calendar_index,
+	Calendar calendar,
 	long input_date,
 	long interval,
 	int32 *result_date,
