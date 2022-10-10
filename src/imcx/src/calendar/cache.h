@@ -21,6 +21,7 @@
 #include <storage/shmem.h>
 #include <miscadmin.h>
 
+int pg_cache_attach (IMCX *imcx);
 int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_calendar_id);
 int pg_calendar_init (IMCX *imcx, unsigned long calendar_id, unsigned long entry_size);
 int pg_set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *calendar_name);

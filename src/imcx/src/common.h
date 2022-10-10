@@ -26,14 +26,17 @@
 #define RET_ERROR_NOT_READY -8 // The Function requires a previous step before using.
 #define RET_ADD_DAYS_NEGATIVE -9
 #define RET_ADD_DAYS_POSITIVE -10
+#define RET_ERROR_CANNOT_ATTACH_SHMEM -11
+#define RET_ERROR_CANNOT_ATTACH_NO_CACHE -12
+#define RET_ERROR_CANNOT_ATTACH_CAL_COUNT_TOO_BIG -13
+
+//typedef struct {
+//	char * calendar_name;
+//} CalendarNameKey;
 
 typedef struct {
-	char * calendar_name;
-} CalendarNameKey;
-
-typedef struct {
-	CalendarNameKey key;
-	char * calendar_id;
+	char key[NAMEDATALEN];
+	unsigned long calendar_id;
 } CalendarNameEntry;
 
 /**
