@@ -15,7 +15,7 @@
 #define MAX_CALENDAR_COUNT 50 // 1 GB
 #define DEF_DEBUG_LOG_LEVEL DEBUG1
 #define QUERY_GET_CAL_MIN_MAX_ID "select min(s.id), max(s.id) from ketteq.slice_type s"
-#define QUERY_GET_CAL_ENTRY_COUNT "select s.slice_type_id, count(*), LOWER(select st.\"name\" from ketteq.slice_type st where st.id = s.slice_type_id) \"name\" from ketteq.slice s group by s.slice_type_id order by s.slice_type_id asc;"
+#define QUERY_GET_CAL_ENTRY_COUNT "select s.slice_type_id, count(*), (select LOWER(st.\"name\") from ketteq.slice_type st where st.id = s.slice_type_id) \"name\" from ketteq.slice s group by s.slice_type_id order by s.slice_type_id asc;"
 #define QUERY_GET_CAL_GET_ENTRIES "select s.slice_type_id, s.start_on from ketteq.slice s order by s.slice_type_id asc, s.start_on asc;"
 
 // OS Includes

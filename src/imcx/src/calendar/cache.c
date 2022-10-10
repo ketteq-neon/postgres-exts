@@ -33,7 +33,7 @@ int pg_cache_attach (IMCX *imcx)
   return RET_SUCCESS;
 }
 
-int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_calendar_id)
+int pg_cache_init (IMCX *imcx, int min_calendar_id, int max_calendar_id)
 {
   if (min_calendar_id > max_calendar_id)
 	{
@@ -60,6 +60,7 @@ int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_
   // Init control Vars
   imcx->calendar_count = calendar_count;
   imcx->entry_count = 0;
+  imcx->min_calendar_id = min_calendar_id;
   if (imcx->calendar_count > LONG_MAX)
 	{
 	  // Calendar_count is too big.
@@ -82,17 +83,17 @@ int pg_cache_init (IMCX *imcx, unsigned long min_calendar_id, unsigned long max_
   return RET_SUCCESS;
 }
 
-int pg_calendar_init (IMCX *imcx, int calendar_id, unsigned long entry_size)
+Calendar * pg_get_calendar(IMCX * imcx, int calendar_id) {
+  ereport(DEBUG2, errmsg ("CalendarId=%d, MinCalendarId=%d", calendar_id, imcx->min_calendar_id));
+  return imcx->calendars[calendar_id - imcx->min_calendar_id];
+}
+
+int32 get_calendar_index(IMCX * imcx, int calendar_id) {
+  return calendar_id - imcx->min_calendar_id;
+}
+
+int pg_calendar_init (Calendar * calendar, int calendar_id, unsigned long entry_size, unsigned long * entry_count_ptr)
 {
-  if (imcx->cache_filled)
-	{
-	  return RET_ERROR_UNSUPPORTED_OP;
-	}
-  if (calendar_id == 0)
-	{
-	  return RET_ERROR_INVALID_PARAM;
-	}
-  Calendar *calendar = imcx->calendars[calendar_id - 1];
   calendar->dates = (int *)ShmemAlloc (entry_size * sizeof (int32));
   if (calendar->dates == NULL)
 	{
@@ -101,13 +102,14 @@ int pg_calendar_init (IMCX *imcx, int calendar_id, unsigned long entry_size)
   memset (calendar->dates, 0, entry_size * sizeof (int32));
   calendar->id = calendar_id;
   calendar->dates_size = entry_size;
-  imcx->entry_count += entry_size;
+  *entry_count_ptr = *entry_count_ptr + entry_size;
   return RET_SUCCESS;
 }
 
-int pg_set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *calendar_name)
+
+
+int pg_set_calendar_name (IMCX *imcx, Calendar * calendar, const char *calendar_name)
 {
-  const Calendar *calendar = imcx->calendars[calendar_index];
   // Allocate Key
   char *key_calendar_name = ShmemAlloc ((strlen (calendar_name) + 1) * sizeof (char));
   strcpy (key_calendar_name, calendar_name);
@@ -126,12 +128,13 @@ int pg_set_calendar_name (IMCX *imcx, unsigned long calendar_index, const char *
 	}
   // Set the key inside the calendar entry (required for key comparison)
   strcpy (entry->key, calendar_name);
+  strcpy (calendar->name, calendar_name);
   entry->calendar_id = calendar->id;
   ereport(DEBUG1, errmsg ("Calendar name for calendar id = '%d' set to '%s'", calendar->id, entry->key));
   return RET_SUCCESS;
 }
 
-int pg_get_calendar_index_by_name (IMCX *imcx, const char *calendar_name, unsigned long *calendar_index)
+int pg_get_calendar_id_by_name (IMCX *imcx, const char *calendar_name, int *calendar_id)
 {
   char *calendar_name_ll = strdup (calendar_name);
   // Lowercase user input
@@ -145,13 +148,13 @@ int pg_get_calendar_index_by_name (IMCX *imcx, const char *calendar_name, unsign
   if (entry_found)
 	{
 	  // Set the output var to the result
-	  *calendar_index = entry->calendar_id - 1;
+	  *calendar_id = entry->calendar_id;
 	  return RET_SUCCESS;
 	}
   return RET_ERROR_NOT_FOUND;
 }
 
-int init_page_size (Calendar *calendar)
+int pg_init_page_size (Calendar *calendar)
 {
   long last_date = calendar->dates[calendar->dates_size - 1];
   long first_date = calendar->dates[0];
@@ -196,7 +199,7 @@ void cache_finish (IMCX *imcx)
 
 int add_calendar_days (
 	const IMCX *imcx,
-	Calendar calendar,
+	Calendar * calendar,
 	long input_date,
 	long interval,
 	int32 *result_date,
@@ -209,7 +212,7 @@ int add_calendar_days (
 	  return RET_ERROR_NOT_READY;
 	}
   // Find the interval -> the closest date index from the left of the input_date in the calendar
-  long prev_date_index = get_closest_index_from_left (input_date, calendar);
+  long prev_date_index = get_closest_index_from_left (input_date, *calendar);
   // Now try to get the corresponding date of requested interval
   long result_date_index = prev_date_index + interval;
   // This can be useful for reporting or debugging.
@@ -226,21 +229,21 @@ int add_calendar_days (
 	{
 	  if (prev_date_index < 0) // Handle Negative OOB Indices (When interval is negative)
 		{
-		  *result_date = calendar.dates[0]; // Returns first date of the calendar
+		  *result_date = calendar->dates[0]; // Returns first date of the calendar
 		  return RET_ADD_DAYS_NEGATIVE;
 		}
-	  if (result_date_index >= calendar.dates_size) // Handle Positive OOB Indices (When interval is positive)
+	  if (result_date_index >= calendar->dates_size) // Handle Positive OOB Indices (When interval is positive)
 		{
 		  *result_date = PG_INT32_MAX; // Returns infinity+.
 		  return RET_ADD_DAYS_POSITIVE;
 		}
-	  *result_date = calendar.dates[result_date_index];
+	  *result_date = calendar->dates[result_date_index];
 	  return RET_SUCCESS;
 	}
   else
 	{
 	  // Handle Negative OOB Indices (When interval is negative)
-	  *result_date = calendar.dates[0]; // Returns the first date of the calendar.
+	  *result_date = calendar->dates[0]; // Returns the first date of the calendar.
 	  return RET_SUCCESS;
 	}
 }

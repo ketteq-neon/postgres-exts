@@ -38,11 +38,9 @@ typedef struct {
 	int calendar_id;
 } CalendarNameEntry;
 
-/**
- *
- */
 typedef struct {
 	int id; // Calendar ID (Same as in origin DB)
+	char name[CALENDAR_NAME_MAX_LEN];
 	int32 * dates; // Dates contained in the Calendar
 	unsigned long dates_size; // Count of dates.
 	int page_size; // Calculated Page Size
@@ -55,6 +53,7 @@ typedef struct {
 	Calendar ** calendars; // Calendars contained in the ICMX struct
 	unsigned long calendar_count; // Count of Calendars
 	unsigned long entry_count; // Count of Entries (From all Calendars)
+	int min_calendar_id;
 	bool cache_filled; // Control variable set to TRUE when the `cache_finish()` function is called.
 	HTAB *pg_calendar_name_hashtable;
 } IMCX;

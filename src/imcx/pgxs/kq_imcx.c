@@ -4,30 +4,10 @@
 
 #include "kq_imcx.h"
 
-static shmem_startup_hook_type prev_shmem_startup_hook = NULL;
-
-typedef struct {
-	AttInMetadata *p_metadata;
-	Tuplestorestate *tuplestorestate;
-} TupleData;
-
-typedef struct {
-	char *search_id;
-	char *name;
-} GetNameData;
-
 // Init of Extension
 
 void _PG_init (void)
 {
-//  if (!process_shared_preload_libraries_in_progress)
-//	{
-//	  ereport(ERROR, (errmsg("KetteQ In-Memory Calendar Extension (kq_imcx) can only be loaded via shared_preload_libraries"),
-//		  errhint("Add 'kq_imcx' to shared_preload_libraries configuration "
-//				  "variable in postgresql.conf in master and workers. Note "
-//				  "that 'kq_imcx' should be at the beginning of "
-//				  "shared_preload_libraries.")));
-//	}
   init_shared_memory ();
   init_gucs ();
   ereport(INFO, errmsg ("KetteQ In-Memory Calendar Extension Loaded."));
@@ -90,8 +70,6 @@ void init_gucs ()
 static void init_shared_memory ()
 {
   Size z = 0;
-  // z = add_size (z, sizeof (IMCX));
-  // z = add_size (z, mul_size (sizeof (Calendar), MAX_CALENDAR_COUNT));
   Size hz = hash_estimate_size (MAX_CALENDAR_COUNT, sizeof (CalendarNameEntry));
   z = add_size (z, hz);
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Requested Shared Memory: %ld", z));
@@ -116,8 +94,7 @@ static void init_shared_memory ()
 	}
   else
 	{
-//	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Shared memory attached."));
-	  ereport(DEBUG1, errmsg (
+	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg (
 		  "CalendarCount: %lu, EntryCount: %lu, Cache Filled: %d, Calendar[0]->dates[0]: %d",
 		  imcx_ptr->calendar_count,
 		  imcx_ptr->entry_count,
@@ -125,9 +102,10 @@ static void init_shared_memory ()
 		  imcx_ptr->calendars[0]->dates[0]
 	  ));
 	  int attach_result = pg_cache_attach (imcx_ptr);
-	  if (attach_result != RET_SUCCESS) {
+	  if (attach_result != RET_SUCCESS)
+		{
 		  ereport(ERROR, errmsg ("Cannot Attach Names HashTable, Error Code: %d", attach_result));
-	  }
+		}
 	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Shared memory attached."));
 	}
   LWLockRelease (AddinShmemInitLock);
@@ -140,12 +118,11 @@ void load_cache_concrete ()
 	{
 	  return; // Do nothing if the cache is already filled
 	}
-//  LWLockAcquire (&shared_memory_ptr->lock, LW_EXCLUSIVE);
-//  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
-//	{
-//	  ereport(ERROR, errmsg ("Cannot acquire Exclusive Write Lock."));
-//	}
   LWLockAcquire (AddinShmemInitLock, LW_EXCLUSIVE);
+  if (!LWLockHeldByMe (AddinShmemInitLock))
+	{
+	  ereport(ERROR, errmsg ("Cannot acquire Exclusive Write Lock."));
+	}
   if (!LWLockHeldByMe (AddinShmemInitLock))
 	{
 	  ereport(ERROR, errmsg ("Cannot acquire AddinShmemInitLock"));
@@ -178,12 +155,12 @@ void load_cache_concrete ()
   // Get the Data and Descriptor
   HeapTuple min_max_tuple = SPI_tuptable->vals[0];
   //
-  uint64 min_value = DatumGetUInt64(
+  int32 min_value = DatumGetInt32(
 	  SPI_getbinval (min_max_tuple,
 					 SPI_tuptable->tupdesc,
 					 1,
 					 &entry_is_null));
-  uint64 max_value = DatumGetUInt64(
+  int32 max_value = DatumGetInt32(
 	  SPI_getbinval (min_max_tuple,
 					 SPI_tuptable->tupdesc,
 					 2,
@@ -191,10 +168,10 @@ void load_cache_concrete ()
   // Init the Struct Cache
   if (pg_cache_init (imcx_ptr, min_value, max_value) < 0)
 	{
-	  ereport(ERROR, errmsg ("Shared Memory Cannot Be Allocated (cache_init, %" PRIu64 ", %" PRIu64 ")", min_value, max_value));
+	  ereport(ERROR, errmsg ("Shared Memory Cannot Be Allocated (cache_init, %d, %d)", min_value, max_value));
 	}
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg (
-	  "Memory Allocated (Q1), Min-Value: '%ld' Max-Value: '%ld'",
+	  "Memory Allocated (Q1), Min-Value: '%d' Max-Value: '%d'",
 	  min_value,
 	  max_value
   ));
@@ -230,7 +207,6 @@ void load_cache_concrete ()
 			  3
 		  )
 	  );
-
 	  ereport(DEF_DEBUG_LOG_LEVEL,
 			  errmsg (
 				  "Q2 (Cursor): Got: SliceTypeName: %s, SliceType: %d, Entries: %" PRIu64,
@@ -239,17 +215,17 @@ void load_cache_concrete ()
 				  calendar_entry_count
 			  ));
 	  // Add to the cache
-	  imcx_ptr->calendars[calendar_id - 1]->id = calendar_id; // Make it work with missing first calendar entry
+	  Calendar *calendar = pg_get_calendar (imcx_ptr, calendar_id); // Pointer to current calendar
 	  int init_result = pg_calendar_init (
-		  imcx_ptr,
+		  calendar,
 		  calendar_id,
-		  calendar_entry_count
+		  calendar_entry_count,
+		  &imcx_ptr->entry_count
 	  );
 	  if (init_result != RET_SUCCESS)
 		{
 		  ereport(ERROR, errmsg ("Cannot initialize calendar, ERROR CODE: %d", init_result));
 		}
-	  // if (init_result) ->
 	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg (
 		  "Calendar Initialized, Index: '%d', ID: '%d', Entry count: '%ld'",
 		  calendar_id - 1,
@@ -257,8 +233,9 @@ void load_cache_concrete ()
 		  calendar_entry_count
 	  ));
 	  // Add The Calendar Name
-	  // TODO: Move back to calendar pointer instead of container indices
-	  int set_name_result = pg_set_calendar_name (imcx_ptr, calendar_id - 1, calendar_name);
+	  int set_name_result = pg_set_calendar_name (imcx_ptr,
+												  calendar,
+												  calendar_name);
 	  if (set_name_result != RET_SUCCESS)
 		{
 		  ereport(ERROR, errmsg ("Cannot set '%s' as name for calendar id '%d'", calendar_name, calendar_id));
@@ -287,35 +264,36 @@ void load_cache_concrete ()
 						 SPI_tuptable->tupdesc,
 						 2,
 						 &entry_is_null));
-	  int32 calendar_index = calendar_id - 1;
 
 	  if (prev_calendar_id != calendar_id)
 		{
 		  prev_calendar_id = calendar_id;
 		  entry_count = 0;
 		}
-
+	  Calendar * calendar = pg_get_calendar (imcx_ptr, calendar_id);
 	  ereport(DEBUG2, errmsg (
-		  "Calendar Id '%d', Calendar Entry (DateADT): '%d', Calendar Index: '%d', Entry Count '%ld'",
+		  "Calendar Index: '%d', Calendar Id '%d', Calendar Entry (DateADT): '%d', Entry Count '%ld'",
+		  get_calendar_index (imcx_ptr, calendar_id),
 		  calendar_id,
 		  calendar_entry,
-		  calendar_index,
 		  entry_count
 	  ));
-
-	  imcx_ptr->calendars[calendar_index]->dates[entry_count] = calendar_entry;
+	  // Fill the Dates Entries
+	  calendar->dates[entry_count] = calendar_entry;
 	  entry_count++;
-	  if (imcx_ptr->calendars[calendar_index]->dates_size == entry_count)
+	  // entry copy complete, calculate page size
+	  if (calendar->dates_size == entry_count)
 		{
-		  // entry copy complete, calculate page size
-		  init_page_size (imcx_ptr->calendars[calendar_index]);
+		  int page_size_init_result = pg_init_page_size (calendar);
+		  if (page_size_init_result != RET_SUCCESS)
+			{
+			  ereport(ERROR, errmsg ("Page map could not be initialized. Error Code: %d", page_size_init_result));
+			}
 		}
 	}
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Q3: Cached %" PRIu64 " slices in total.", SPI_processed));
   SPI_finish ();
-  // cache_finish (imcx_ptr);
-  imcx_ptr->cache_filled = true;
-//  LWLockRelease (&shared_memory_ptr->lock);
+  cache_finish (imcx_ptr);
   LWLockRelease (AddinShmemInitLock);
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Released."));
   ereport(INFO, errmsg ("Slices Loaded Into Cache."));
@@ -461,27 +439,6 @@ Datum calendar_invalidate (PG_FUNCTION_ARGS)
   return (Datum)0;
 }
 
-//void report_names (gpointer _key, gpointer _value, gpointer _user_data)
-//{
-//  char *key = _key;
-//  char *calendar_id = _value;
-//  TupleData *tupleData = (TupleData *)_user_data;
-//  add_row_to_2_col_tuple (tupleData->p_metadata, tupleData->tuplestorestate,
-//						  key,
-//						  calendar_id);
-//}
-//
-//void get_name (gpointer _key, gpointer _value, gpointer _user_data)
-//{
-//  char *key = (char *)_key;
-//  const char *calendar_id = (const char *)_value;
-//  GetNameData *user = _user_data;
-//  if (strcmp (user->search_id, calendar_id) == 0)
-//	{
-//	  user->name = key;
-//	}
-//}
-
 static CalendarNameEntry *find_calendar_name_entry (HTAB *htab, int calendar_id)
 {
   CalendarNameEntry *entry = NULL;
@@ -556,10 +513,10 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
   add_row_to_2_col_tuple (p_metadata, tuplestorestate,
 						  "Cache-Calendars Size", convert_u_long_to_str (imcx_ptr->entry_count));
   // --
-  int noCalendarIdCounter = 0;
+  int no_calendar_id_counter = 0;
   for (unsigned long i = 0; i < imcx_ptr->calendar_count; i++)
 	{
-	  const Calendar *curr_calendar = imcx_ptr->calendars[i];
+	  Calendar *curr_calendar = imcx_ptr->calendars[i];
 	  if (curr_calendar == NULL)
 		{
 		  ereport(ERROR, errmsg ("Calendar Index '%lu' is NULL, cannot continue. Total Calendars '%lu'", i, imcx_ptr
@@ -567,61 +524,13 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
 		}
 	  if (curr_calendar->id == 0)
 		{
-		  noCalendarIdCounter++;
+		  no_calendar_id_counter++;
 		  continue;
 		}
 	  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
 							  "SliceType-Id", convert_u_long_to_str (curr_calendar->id));
-	  // -- Get The Name
-	  // GetNameData getNameData;
-	  // getNameData.search_id = convert_u_long_to_str (curr_calendar->id);
-	  // g_hash_table_foreach (imcx_ptr->imcx_calendar_name_hashtable, get_name, &getNameData);
-
-	  // const char * calendar_id = convert_u_long_to_str (curr_calendar->id);
-	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Trying to find name for calendar %d", curr_calendar->id));
-
-	  // 0
-	  CalendarNameEntry *entry = find_calendar_name_entry (imcx_ptr->pg_calendar_name_hashtable, curr_calendar->id);
-
-//	  HASH_SEQ_STATUS lookup_status;
-//	  hash_seq_init (&lookup_status, imcx_ptr->pg_calendar_name_hashtable);
-//	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Sequence initialized OK"));
-//	  CalendarNameEntry *name_entry = NULL;
-//	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Search initialized OK"));
-//	  while ((name_entry = (CalendarNameEntry*)hash_seq_search (&lookup_status)) != NULL) {
-//		  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Entry Id: %lu (?) %lu", name_entry->calendar_id, curr_calendar->id));
-//		  if (name_entry->calendar_id == curr_calendar->id)
-//			{
-//			  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Entry Found"));
-//			  hash_seq_term (&lookup_status);
-//			  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Sequence Finished OK"));
-//			  break;
-//			}
-//		  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Entry Not Found"));
-//	  }
-	  // 2
-//	  while (name_entry != NULL)
-//		{
-//		  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Entry Id: %lu (?) %lu", name_entry->calendar_id, curr_calendar->id));
-//		  if (name_entry->calendar_id == curr_calendar->id)
-//			{
-//			  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Entry Found"));
-//			  hash_seq_term (&lookup_status);
-//			  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Sequence Finished OK"));
-//			  break;
-//			}
-//		  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Entry Not Found, creating new pointer"));
-//		  name_entry = (CalendarNameEntry *) hash_seq_search (&lookup_status);
-//		  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Next Element -> %lu", name_entry->calendar_id));
-//		}
-	  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Find Finished"));
-	  if (entry == NULL)
-		{
-		  ereport(ERROR, errmsg ("Cannot find the Calendar Name for the calendar id '%d'", curr_calendar->id));
-		}
-	  // --
 	  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
-							  "   Name", entry->key);
+							  "   Name", curr_calendar->name);
 	  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
 							  "   Entries", convert_u_long_to_str (curr_calendar->dates_size));
 	  add_row_to_2_col_tuple (p_metadata, tuplestorestate,
@@ -652,7 +561,7 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
 	}
   add_row_to_2_col_tuple (p_metadata, tuplestorestate,
 						  "Missing Slices (id==0)",
-						  convert_int_to_str (noCalendarIdCounter));
+						  convert_int_to_str (no_calendar_id_counter));
   LWLockRelease (&shared_memory_ptr->lock);
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Shared Read Lock Released."));
   return 0;
@@ -685,15 +594,14 @@ add_calendar_days_by_id (PG_FUNCTION_ARGS)
   int32 date = PG_GETARG_INT32(0);
   int32 calendar_interval = PG_GETARG_INT32(1);
   int32 calendar_id = PG_GETARG_INT32(2);
-  int32 calendar_index = calendar_id - 1;
-  const Calendar *cal = imcx_ptr->calendars[calendar_index];
+  Calendar *cal = pg_get_calendar (imcx_ptr, calendar_id);
   //
   unsigned long fd_idx;
   unsigned long rs_idx;
   int32 new_date;
   //
   int add_calendar_days_result = add_calendar_days (imcx_ptr,
-													calendar_index,
+													cal,
 													date,
 													calendar_interval,
 													&new_date,
@@ -704,7 +612,7 @@ add_calendar_days_by_id (PG_FUNCTION_ARGS)
 	{
 	  ereport(ERROR, errmsg ("Cache is not ready."));
 	}
-  ereport(DEBUG1, errmsg (
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg (
 	  "FirstDate-Idx: %lu = %d, ResultDate-Idx: %lu = %d",
 	  fd_idx,
 	  cal->dates[fd_idx],
@@ -736,13 +644,13 @@ add_calendar_days_by_name (PG_FUNCTION_ARGS)
   // Convert Name to CString
   const char *calendar_name_str = text_to_cstring (calendar_name);
   // Lookup for the Calendar
-  unsigned long calendar_index = 0;
+  int calendar_id = 0;
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Trying to find Calendar with name '%s'", calendar_name_str));
   int get_calendar_result =
-	  pg_get_calendar_index_by_name (
+	  pg_get_calendar_id_by_name (
 		  imcx_ptr,
 		  calendar_name_str,
-		  &calendar_index
+		  &calendar_id
 	  );
   if (get_calendar_result != RET_SUCCESS)
 	{
@@ -751,14 +659,14 @@ add_calendar_days_by_name (PG_FUNCTION_ARGS)
 	  if (get_calendar_result == RET_ERROR_UNSUPPORTED_OP)
 		ereport(ERROR, errmsg ("Cannot get calendar by name. (Out of Bounds)"));
 	}
-  const Calendar *calendar = imcx_ptr->calendars[calendar_index];
+  Calendar *calendar = pg_get_calendar (imcx_ptr, calendar_id);
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Found Calendar with Name '%s' and ID '%d'", calendar_name_str, calendar->id));
   unsigned long fd_idx = 0;
   unsigned long rs_idx = 0;
   DateADT result_date;
   // Result Date
   int add_calendar_days_result = add_calendar_days (imcx_ptr,
-													calendar_index,
+													calendar,
 													input_date,
 													calendar_interval,
 													&result_date,
@@ -769,7 +677,7 @@ add_calendar_days_by_name (PG_FUNCTION_ARGS)
 	{
 	  ereport(ERROR, errmsg ("Cache is not ready."));
 	}
-  ereport(DEBUG1, errmsg (
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg (
 	  "FirstDate-Idx: %lu = %d, ResultDate-Idx: %lu = %d",
 	  fd_idx,
 	  calendar->dates[fd_idx],
