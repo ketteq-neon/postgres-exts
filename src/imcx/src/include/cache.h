@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <glib-2.0/glib.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -40,9 +39,9 @@ int pg_cache_init (IMCX *imcx, int min_calendar_id, int max_calendar_id);
  * @param calendar_id Calendar ID
  * @return
  */
-Calendar * pg_get_calendar(IMCX * imcx, int calendar_id);
+Calendar *pg_get_calendar (IMCX *imcx, int calendar_id);
 
-int32 get_calendar_index(IMCX * imcx, int calendar_id);
+int32 get_calendar_index (IMCX *imcx, int calendar_id);
 
 /**
  * Allocates and initializes a Calendar.
@@ -55,7 +54,7 @@ int32 get_calendar_index(IMCX * imcx, int calendar_id);
  *         RET_ERROR_UNSUPPORTED_OP = Cache already finished, call invalidate to use init again.
  *         RET_SUCCESS = SUCCESS.
  */
-int pg_calendar_init (Calendar * calendar, int calendar_id, unsigned long entry_size, unsigned long * entry_count_ptr);
+int pg_calendar_init (Calendar *calendar, int calendar_id, unsigned long entry_size, unsigned long *entry_count_ptr);
 
 /**
  * Sets a name for a given calendar index.
@@ -64,7 +63,7 @@ int pg_calendar_init (Calendar * calendar, int calendar_id, unsigned long entry_
  * @param calendar_name Constant string containing the name of the calendar.
  * @return RET_SUCCESS = SUCCESS.
  */
-int pg_set_calendar_name (IMCX *imcx, Calendar * calendar, const char *calendar_name);
+int pg_set_calendar_name (IMCX *imcx, Calendar *calendar, const char *calendar_name);
 
 /**
  * Gets the Calendar id by its given name.
@@ -109,13 +108,13 @@ void cache_finish (IMCX *imcx);
  *         RET_SUCCESS = SUCCESS.
  */
 int add_calendar_days (
-	const IMCX *imcx,
-	Calendar * calendar,
-	long input_date,
-	long interval,
-	int32 *result_date,
-	unsigned long *first_date_idx,
-	unsigned long *result_date_idx
+    const IMCX *imcx,
+    Calendar *calendar,
+    long input_date,
+    long interval,
+    int32 *result_date,
+    unsigned long *first_date_idx,
+    unsigned long *result_date_idx
 );
 
 /**

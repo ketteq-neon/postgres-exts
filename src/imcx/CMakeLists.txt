@@ -22,8 +22,7 @@ add_postgresql_extension(
         SOURCES ${CommonSrc} pgxs/kq_imcx.c
         SCRIPTS pgxs/kq_imcx--0.1.sql)
 
-# Link to Other C Libraries (GLib2.0)
-target_link_libraries(${ExtensionLib} PkgConfig::deps)
+# Testing is disabled, a migration to a postgres-runtime test suite is rq, for example Testgres.
 
 # Test Target Configuration
 #set(TestBin imcx_test)

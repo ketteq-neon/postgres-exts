@@ -7,7 +7,6 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-#include <glib-2.0/glib.h>
 
 #include "postgres.h"
 #include <utils/hsearch.h>
@@ -34,28 +33,28 @@
 #define CALENDAR_NAMES_HASH_NAME "KQ_IMCX_CAL_NAMES_SMHTAB"
 
 typedef struct {
-	char key[CALENDAR_NAME_MAX_LEN];
-	int calendar_id;
+    char key[CALENDAR_NAME_MAX_LEN];
+    int calendar_id;
 } CalendarNameEntry;
 
 typedef struct {
-	int id; // Calendar ID (Same as in origin DB)
-	char name[CALENDAR_NAME_MAX_LEN];
-	int32 * dates; // Dates contained in the Calendar
-	unsigned long dates_size; // Count of dates.
-	int page_size; // Calculated Page Size
-	long first_page_offset; // Offset of the First Page
-	long * page_map; // Page map contained in the Calendar
-	long page_map_size; // Count of Page map entries
+    int id; // Calendar ID (Same as in origin DB)
+    char name[CALENDAR_NAME_MAX_LEN];
+    int32 *dates; // Dates contained in the Calendar
+    unsigned long dates_size; // Count of dates.
+    int page_size; // Calculated Page Size
+    long first_page_offset; // Offset of the First Page
+    long *page_map; // Page map contained in the Calendar
+    long page_map_size; // Count of Page map entries
 } Calendar;
 
 typedef struct {
-	Calendar ** calendars; // Calendars contained in the ICMX struct
-	unsigned long calendar_count; // Count of Calendars
-	unsigned long entry_count; // Count of Entries (From all Calendars)
-	int min_calendar_id; // Min calendar ID, used as offset to set the calendar indices
-	bool cache_filled; // Control variable set to TRUE when the `cache_finish()` function is called.
-	HTAB *pg_calendar_name_hashtable;
+    Calendar **calendars; // Calendars contained in the ICMX struct
+    unsigned long calendar_count; // Count of Calendars
+    unsigned long entry_count; // Count of Entries (From all Calendars)
+    int min_calendar_id; // Min calendar ID, used as offset to set the calendar indices
+    bool cache_filled; // Control variable set to TRUE when the `cache_finish()` function is called.
+    HTAB *pg_calendar_name_hashtable;
 } IMCX;
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_COMMON_H

@@ -21,17 +21,12 @@ hosts is not supported.
 
 2. Clone this repo.
 3. `cd` to newly cloned repo.
-4. Clone `Google Test` inside it:
-
-    ```bash
-    git clone https://github.com/google/googletest 
-    ```
-5. If not using an IDE (such as CLion from Jetbrains) create `build` folders:
+4. If not using an IDE (such as CLion from Jetbrains) create `build` folders:
 
     ```bash
     mkdir build 
     ```
-6. CD to the newly created build folder and generate Makefiles using `cmake`:
+5. CD to the newly created build folder and generate Makefiles using `cmake`:
     
     ```bash
     cd build
@@ -39,9 +34,9 @@ hosts is not supported.
     ```
    
    You can use `cmake -DCMAKE_BUILD_TYPE=Debug` to include debug symbols in the output binary. This will disable all optimizations of the C compiler.
+   <br/><br/>   
 
-
-7. Run `make` to create the extension shared object.
+6. Run `make` to create the extension shared object.
 
     ```bash
     make -j8

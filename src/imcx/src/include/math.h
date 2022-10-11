@@ -49,6 +49,6 @@ long binary_search (const long arr[], long left, long right, long value);
  * @param value
  * @return
  */
-long left_binary_search (const int * arr, long left, long right, long value);
+long left_binary_search (const int *arr, long left, long right, long value);
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_MATH_H

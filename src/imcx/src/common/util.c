@@ -16,24 +16,24 @@ char *convert_double_to_str (double number, int precision)
   char *format_str;
   bool dynamic_template = false;
   if (rint (number) != number)
-	{
-	  int precision_len = snprintf (NULL, 0, "%d", precision);
-	  format_str = malloc ((precision_len + 3 + 1) * sizeof (char));
-	  sprintf (format_str, "%%.%df", precision);
-	  dynamic_template = true;
-	}
+    {
+      int precision_len = snprintf (NULL, 0, "%d", precision);
+      format_str = malloc ((precision_len + 3 + 1) * sizeof (char));
+      sprintf (format_str, "%%.%df", precision);
+      dynamic_template = true;
+    }
   else
-	{
-	  format_str = "%.0f";
-	}
+    {
+      format_str = "%.0f";
+    }
   char *return_str;
   int return_len = snprintf (NULL, 0, format_str, number);
   return_str = malloc ((return_len + 1) * sizeof (char));
   snprintf (return_str, return_len + 1, format_str, number);
   if (dynamic_template)
-	{
-	  free (format_str);
-	}
+    {
+      free (format_str);
+    }
   return return_str;
 }
 
@@ -80,6 +80,7 @@ char *str_to_lowercase (char *string)
   return string_copy;
 }
 
-void str_to_lowercase_self (char *string) {
+void str_to_lowercase_self (char *string)
+{
   for (; *string; ++string) *string = (char)tolower (*string);
 }
