@@ -4,7 +4,7 @@ from xsct.version import xsct_version
 setup(
     name='xsct',
     version=xsct_version,
-    description='KetteQ Extensions Concurrency Test [xsct]',
+    description='ketteQ Extensions Concurrency Test [xsct]',
     url='https://ketteq.com/',
     author='Giancarlo A. Chiappe',
     author_email='giancarlo.chiappe@ketteq.com',

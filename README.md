@@ -126,7 +126,7 @@ message is shown in the console: `INFO:  KetteQ In-Memory Calendar Extension Loa
 Show information about the extension status:
 
 ```
-# SELECT * FROM kq_calendar_cache_info();
+SELECT * FROM kq_calendar_cache_info();
 INFO:  KetteQ In-Memory Calendar Extension Loaded.
               property              | calendar_id 
 ------------------------------------+-------
@@ -140,7 +140,7 @@ INFO:  KetteQ In-Memory Calendar Extension Loaded.
 Show details about the cache:
 
 ```
-# SELECT * FROM kq_calendar_cache_report(false, false);
+SELECT * FROM kq_calendar_cache_report(false, false);
         property        |  calendar_id  
 ------------------------+---------
  Slices-Id Max          | 13
@@ -179,9 +179,10 @@ the function is executed, a fresh cache is available.
 
 ```
 SELECT kq_invalidate_calendar_cache();
- kq_imcx_invalidate 
---------------------
- Cache Invalidated.
+INFO:  Cache Invalidated Successfully
+ kq_invalidate_calendar_cache 
+------------------------------
+ 
 (1 row)
 ```
 
@@ -192,7 +193,7 @@ Add an interval to a date that corresponds to the quarter calendar (Slice Type),
 date must be in a PostgreSQL-supported date format.
 
 ```
-# SELECT kq_add_days('2008-01-15', 1, 'quarter');
+SELECT kq_add_days('2008-01-15', 1, 'quarter');
  kq_add_days 
 -------------
  2008-04-01
@@ -229,9 +230,13 @@ summary can be collected piping `stdout`.
    ```bash
    . venv/bin/activate
    ```
-3. Run `xsct` from command line, use `--help` for options.
+3. Install required modules
    ```bash
-   xsct --help
+   pip3 install -r requirements.txt
+   ```
+4. Run the `xsct.suite` module from command line
+   ```bash
+   python3 -m xsct.suite
    ```
    Read the provided options to test the extension.
 

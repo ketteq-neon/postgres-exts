@@ -2,5 +2,10 @@ build
 build-debug
 cmake-build
 cmake-build-debug
-.idea
 /googletest/
+/concurrency-test/venv/
+/concurrency-test/build/
+/concurrency-test/dist/
+.idea
+.DS_Store
+*.egg-info
