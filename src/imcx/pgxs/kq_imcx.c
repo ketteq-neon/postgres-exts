@@ -119,19 +119,19 @@ void load_cache_concrete ()
       ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Cache already filled. Skipping slice loading."));
       return; // Do nothing if the cache is already filled
     }
-  LWLockAcquire (AddinShmemInitLock, LW_EXCLUSIVE);
-  if (!LWLockHeldByMe (AddinShmemInitLock))
+  LWLockAcquire (&shared_memory_ptr->lock, LW_EXCLUSIVE);
+  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
     {
       ereport(ERROR, errmsg ("Cannot acquire Exclusive Write Lock."));
     }
-  if (!LWLockHeldByMe (AddinShmemInitLock))
+  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
     {
       ereport(ERROR, errmsg ("Cannot acquire AddinShmemInitLock"));
     }
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Acquired."));
   if (imcx_ptr->cache_filled)
     {
-      LWLockRelease (AddinShmemInitLock);
+      LWLockRelease (&shared_memory_ptr->lock);
       ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Cache already filled. Skipping slice loading. Lock Released."));
       return; // Do nothing if the cache is already filled
     }
@@ -302,7 +302,7 @@ void load_cache_concrete ()
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Q3: Cached %" PRIu64 " slices in total.", SPI_processed));
   SPI_finish ();
   cache_finish (imcx_ptr);
-  LWLockRelease (AddinShmemInitLock);
+  LWLockRelease (&shared_memory_ptr->lock);
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Released."));
   ereport(INFO, errmsg ("Slices Loaded Into Cache."));
 }

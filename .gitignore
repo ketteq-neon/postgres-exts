@@ -6,6 +6,9 @@ cmake-build-debug
 /concurrency-test/venv/
 /concurrency-test/build/
 /concurrency-test/dist/
+/concurrency-test/xsct/__pycache__/
+/concurrency-test/xsct/common/__pycache__/
+/concurrency-test/xsct/imcx/__pycache__/
 .idea
 .DS_Store
 *.egg-info
