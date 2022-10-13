@@ -209,6 +209,35 @@ The output of this function can be used inside a normal SQL query:
 (1 row)
 ```
 
+# External Tests
+
+## Extensions Concurrency Test (XSCT)
+
+**Important:** Extension must be installed in target server before running the concurrency test.
+
+This application written in python will connect to backend database server and simulate a race condition. The
+test is fully automated and is configurable via command line options.
+
+The result of the test is provided as standard `ERROR_CODE` where `0` means all tests were run successfully. Output
+summary can be collected piping `stdout`.
+
+1. Change directory to `concurrency-test`.
+   ```bash
+   cd concurrency-test
+   ```
+2. Activate **virtualenv**
+   ```bash
+   . venv/bin/activate
+   ```
+3. Run `xsct` from command line, use `--help` for options.
+   ```bash
+   xsct --help
+   ```
+   Read the provided options to test the extension.
+
+This application can be run in any Python supported operating system, if running in Windows, use the correct
+`virtualenv` binaries.
+
 # Architecture
 
 Postgres' extensions are handled by a "bridge" (or main) C file with functions that must be mapped into the 
