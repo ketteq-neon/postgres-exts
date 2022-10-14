@@ -5,7 +5,7 @@
 
 #include "imcx/src/include/math.h"
 
-int calculate_page_size (long first_date, long last_date, ulong entry_count)
+int32 calculate_page_size (long first_date, long last_date, ulong entry_count)
 {
   long date_range = last_date - first_date;
   double avg_entries_per_week_calendar = date_range / 7.0;

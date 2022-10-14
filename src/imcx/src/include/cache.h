@@ -20,7 +20,7 @@
 #include <storage/shmem.h>
 #include <miscadmin.h>
 
-int pg_cache_attach (IMCX *imcx);
+int pg_init_hashtable(IMCX *imcx);
 
 /**
  * Initializes main struct (IMCX), contains the calendars and control variables.
@@ -54,7 +54,7 @@ int32 get_calendar_index (IMCX *imcx, int calendar_id);
  *         RET_ERROR_UNSUPPORTED_OP = Cache already finished, call invalidate to use init again.
  *         RET_SUCCESS = SUCCESS.
  */
-int pg_calendar_init (Calendar *calendar, int calendar_id, unsigned long entry_size, unsigned long *entry_count_ptr);
+int pg_calendar_init (Calendar *calendar, int32 calendar_id, int32 entry_size, int32 *entry_count_ptr);
 
 /**
  * Sets a name for a given calendar index.

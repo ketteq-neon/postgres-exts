@@ -30,7 +30,7 @@ STRICT
    LANGUAGE c AS 'MODULE_PATHNAME', 'add_calendar_days_by_id';
 
 -- Calculates next date for the given days (selects calendar by NAME).
-CREATE FUNCTION kq_add_days(date, int, text)
+CREATE FUNCTION kq_add_days(date, int, VARCHAR(90))
     RETURNS DATE
 STRICT
     LANGUAGE c AS 'MODULE_PATHNAME', 'add_calendar_days_by_name';

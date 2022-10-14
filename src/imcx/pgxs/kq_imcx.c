@@ -4,12 +4,30 @@
 
 #include "kq_imcx.h"
 
+static shmem_startup_hook_type prev_shmem_startup_hook = NULL;
+
 // Init of Extension
 
 void _PG_init (void)
 {
-  init_shared_memory ();
+  if (!process_shared_preload_libraries_in_progress)
+    {
+      ereport(ERROR, (errmsg ("kq_imcx can only be loaded via shared_preload_libraries"),
+          errhint ("Add kq_imcx to shared_preload_libraries configuration "
+                   "variable in postgresql.conf in master and workers. Note "
+                   "that kq_imcx should be at the beginning of "
+                   "shared_preload_libraries.")));
+    }
+
   init_gucs ();
+
+  RequestAddinShmemSpace ((size_t)1024 * 1024 * 10);
+  RequestNamedLWLockTranche (TRANCHE_NAME, 1);
+
+  prev_shmem_startup_hook = shmem_startup_hook;
+  shmem_startup_hook = init_shared_memory;
+//  init_shared_memory ();
+
   ereport (INFO, errmsg ("KetteQ In-Memory Calendar Extension Loaded."));
 }
 
@@ -19,8 +37,7 @@ void _PG_fini (void)
 }
 
 typedef struct {
-    int tranche_id;
-    LWLock lock;
+    LWLockId lock;
 } IMCXSharedMemory;
 
 IMCXSharedMemory *shared_memory_ptr;
@@ -69,16 +86,14 @@ void init_gucs ()
 
 static void init_shared_memory ()
 {
-  Size z = 0;
-  Size hz = hash_estimate_size (MAX_CALENDAR_COUNT, sizeof (CalendarNameEntry));
-  z = add_size (z, hz);
-  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Requested Shared Memory: %ld", z));
-  RequestAddinShmemSpace (z);
-  LWLockAcquire (AddinShmemInitLock, LW_EXCLUSIVE);
-  if (!LWLockHeldByMe (AddinShmemInitLock))
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("init_shared_memory()"));
+  if (prev_shmem_startup_hook)
     {
-      ereport(ERROR, errmsg ("Cannot acquire AddinShmemInitLock"));
+      prev_shmem_startup_hook ();
     }
+  imcx_ptr = NULL;
+  shared_memory_ptr = NULL;
+  LWLockAcquire (AddinShmemInitLock, LW_EXCLUSIVE);
   bool shared_memory_found;
   bool imcx_found;
   shared_memory_ptr = ShmemInitStruct ("IMCXSharedMemory", sizeof (IMCXSharedMemory), &shared_memory_found);
@@ -87,51 +102,91 @@ static void init_shared_memory ()
     {
       memset (shared_memory_ptr, 0, sizeof (IMCXSharedMemory));
       memset (imcx_ptr, 0, sizeof (IMCX));
-      shared_memory_ptr->tranche_id = LWLockNewTrancheId ();
-      LWLockRegisterTranche (shared_memory_ptr->tranche_id, TRANCHE_NAME);
-      LWLockInitialize (&shared_memory_ptr->lock, shared_memory_ptr->tranche_id);
+      shared_memory_ptr->lock = (LWLockId)GetNamedLWLockTranche (TRANCHE_NAME);
       ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Allocated Shared Memory."));
+    }
+  int init_hashtable_result = pg_init_hashtable (imcx_ptr);
+  if (init_hashtable_result != RET_SUCCESS)
+    {
+      ereport(ERROR, errmsg ("Cannot Attach Names HashTable, Error Code: %d", init_hashtable_result));
     }
   else
     {
-      ereport(DEF_DEBUG_LOG_LEVEL, errmsg (
-          "CalendarCount: %lu, EntryCount: %lu, Cache Filled: %d, Calendar[0]->dates[0]: %d",
-          imcx_ptr->calendar_count,
-          imcx_ptr->entry_count,
-          imcx_ptr->cache_filled,
-          imcx_ptr->cache_filled ? imcx_ptr->calendars[0]->dates[0] : -1
-      ));
-      int attach_result = pg_cache_attach (imcx_ptr);
-      if (attach_result != RET_SUCCESS)
-        {
-          ereport(ERROR, errmsg ("Cannot Attach Names HashTable, Error Code: %d", attach_result));
-        }
-      ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Shared memory attached."));
+      ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Memory Attached"));
     }
   LWLockRelease (AddinShmemInitLock);
+
   ereport(INFO, errmsg ("Initialized Shared Memory."));
 }
 
+//void add_calendar (HTAB *ht, const char *name, int32 id)
+//{
+//  bool entry_found = false;
+//  CalendarNameEntry *new_entry = hash_search (ht,
+//                                              name,
+//                                              HASH_ENTER,
+//                                              &entry_found);
+//  strcpy (new_entry->key, name);
+//  new_entry->calendar_id = id;
+//}
+
+//void populate_cache ()
+//{
+//  if (imcx_ptr->cache_filled)
+//    {
+//      ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Cache already filled. Skipping slice loading."));
+//      return; // Do nothing if the cache is already filled
+//    }
+//  LWLockAcquire (shared_memory_ptr->lock, LW_EXCLUSIVE);
+//  if (!LWLockHeldByMe (shared_memory_ptr->lock))
+//    {
+//      ereport(ERROR, errmsg ("Cannot acquire AddinShmemInitLock"));
+//    }
+//  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Acquired."));
+//  if (imcx_ptr->cache_filled)
+//    {
+//      LWLockRelease (shared_memory_ptr->lock);
+//      ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Cache already filled. Skipping slice loading. Lock Released."));
+//      return; // Do nothing if the cache is already filled
+//    }
+//
+//  int32 min_value = 0;
+//  int32 max_value = 20;
+//
+//  if (pg_cache_init (imcx_ptr, min_value, max_value) < 0)
+//    {
+//      ereport(ERROR, errmsg ("Shared Memory Cannot Be Allocated (cache_init, %d, %d)", min_value, max_value));
+//    }
+//
+//  add_calendar (imcx_ptr->pg_calendar_name_hashtable, "quarter", 0);
+//  add_calendar (imcx_ptr->pg_calendar_name_hashtable, "year", 1);
+//  add_calendar (imcx_ptr->pg_calendar_name_hashtable, "month", 2);
+//  add_calendar (imcx_ptr->pg_calendar_name_hashtable, "week", 3);
+//  add_calendar (imcx_ptr->pg_calendar_name_hashtable, "day", 4);
+//
+//  imcx_ptr->cache_filled = true;
+//  LWLockRelease (shared_memory_ptr->lock);
+//  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Released."));
+//  ereport(INFO, errmsg ("Slices Loaded Into Cache."));
+//}
+
 void load_cache_concrete ()
 {
+
   if (imcx_ptr->cache_filled)
     {
       ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Cache already filled. Skipping slice loading."));
       return; // Do nothing if the cache is already filled
     }
-  LWLockAcquire (&shared_memory_ptr->lock, LW_EXCLUSIVE);
-  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
-    {
-      ereport(ERROR, errmsg ("Cannot acquire Exclusive Write Lock."));
-    }
-  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
+  LWLockAcquire (shared_memory_ptr->lock, LW_EXCLUSIVE);
+  if (!LWLockHeldByMe (shared_memory_ptr->lock))
     {
       ereport(ERROR, errmsg ("Cannot acquire AddinShmemInitLock"));
     }
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Acquired."));
   if (imcx_ptr->cache_filled)
     {
-      LWLockRelease (&shared_memory_ptr->lock);
+      LWLockRelease (shared_memory_ptr->lock);
       ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Cache already filled. Skipping slice loading. Lock Released."));
       return; // Do nothing if the cache is already filled
     }
@@ -179,7 +234,7 @@ void load_cache_concrete ()
       ereport(ERROR, errmsg ("Shared Memory Cannot Be Allocated (cache_init, %d, %d)", min_value, max_value));
     }
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg (
-      "Memory Allocated (Q1), Min-Value: '%d' Max-Value: '%d'",
+      "Memory Allocated (Q1), Min-Value: '%d' Max-Value: '%d",
       min_value,
       max_value
   ));
@@ -203,7 +258,7 @@ void load_cache_concrete ()
         {
           continue;
         }
-      uint64 calendar_entry_count = DatumGetUInt64(
+      int32 calendar_entry_count = DatumGetInt32(
           SPI_getbinval (cal_entries_count_tuple,
                          SPI_tuptable->tupdesc,
                          2,
@@ -217,7 +272,7 @@ void load_cache_concrete ()
       );
       ereport(DEF_DEBUG_LOG_LEVEL,
               errmsg (
-                  "Q2 (Cursor): Got: SliceTypeName: %s, SliceType: %d, Entries: %" PRIu64,
+                  "Q2 (Cursor): Got: SliceTypeName: %s, SliceType: %d, Entries: %d",
                   calendar_name,
                   calendar_id,
                   calendar_entry_count
@@ -235,7 +290,7 @@ void load_cache_concrete ()
           ereport(ERROR, errmsg ("Cannot initialize calendar, ERROR CODE: %d", init_result));
         }
       ereport(DEF_DEBUG_LOG_LEVEL, errmsg (
-          "Calendar Initialized, Index: '%d', ID: '%d', Entry count: '%ld'",
+          "Calendar Initialized, Index: '%d', ID: '%d', Entry count: '%d'",
           calendar_id - 1,
           calendar_id,
           calendar_entry_count
@@ -302,7 +357,7 @@ void load_cache_concrete ()
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Q3: Cached %" PRIu64 " slices in total.", SPI_processed));
   SPI_finish ();
   cache_finish (imcx_ptr);
-  LWLockRelease (&shared_memory_ptr->lock);
+  LWLockRelease (shared_memory_ptr->lock);
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Released."));
   ereport(INFO, errmsg ("Slices Loaded Into Cache."));
 }
@@ -340,8 +395,8 @@ PG_FUNCTION_INFO_V1(calendar_info);
 Datum calendar_info (PG_FUNCTION_ARGS)
 {
   load_cache_concrete ();
-  LWLockAcquire (&shared_memory_ptr->lock, LW_SHARED);
-  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
+  LWLockAcquire (shared_memory_ptr->lock, LW_SHARED);
+  if (!LWLockHeldByMe (shared_memory_ptr->lock))
     {
       ereport (ERROR, errmsg ("Cannot Acquire Shared Read Lock."));
     }
@@ -390,7 +445,7 @@ Datum calendar_info (PG_FUNCTION_ARGS)
                           "Shared Memory Requested (MBytes)",
                           convert_double_to_str (MAX_CALENDAR_COUNT / 1024.0 / 1024.0, 2));
 
-  LWLockRelease (&shared_memory_ptr->lock);
+  LWLockRelease (shared_memory_ptr->lock);
   ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Shared Read Lock Released."));
   return (Datum)0;
 }
@@ -404,8 +459,8 @@ Datum calendar_invalidate (PG_FUNCTION_ARGS)
       ereport (INFO, errmsg ("Cache cannot be invalidated, is not yet loaded."));
       PG_RETURN_VOID ();
     }
-  LWLockAcquire (AddinShmemInitLock, LW_EXCLUSIVE);
-  if (!LWLockHeldByMe (AddinShmemInitLock))
+  LWLockAcquire (shared_memory_ptr->lock, LW_EXCLUSIVE);
+  if (!LWLockHeldByMe (shared_memory_ptr->lock))
     {
       ereport (ERROR, errmsg ("Cannot Acquire Exclusive Write Lock."));
     }
@@ -413,11 +468,11 @@ Datum calendar_invalidate (PG_FUNCTION_ARGS)
   if (!imcx_ptr->cache_filled)
     {
       ereport (INFO, errmsg ("Cache cannot be invalidated, is not yet loaded."));
-      LWLockRelease (AddinShmemInitLock);
+      LWLockRelease (shared_memory_ptr->lock);
       PG_RETURN_VOID ();
     }
   int invalidate_result = cache_invalidate (imcx_ptr);
-  LWLockRelease (AddinShmemInitLock);
+  LWLockRelease (shared_memory_ptr->lock);
   ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Exclusive Write Lock Released."));
   if (invalidate_result == 0)
     {
@@ -431,38 +486,10 @@ Datum calendar_invalidate (PG_FUNCTION_ARGS)
   PG_RETURN_VOID ();
 }
 
-static CalendarNameEntry *find_calendar_name_entry (HTAB *htab, int calendar_id)
-{
-  CalendarNameEntry *entry = NULL;
-  HASH_SEQ_STATUS status;
-
-  long count = hash_get_num_entries (htab);
-  ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("htab size %ld", count));
-
-  hash_seq_init (&status, htab);
-  for (int idx = 0; idx < count; idx++)
-    {
-      entry = (CalendarNameEntry *)hash_seq_search (&status);
-      ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("calendar: %s [%d] (?) %d",
-                                            entry->key,
-                                            entry->calendar_id,
-                                            calendar_id
-      ));
-      if (entry->calendar_id == calendar_id)
-        {
-          ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("found"));
-          break;
-        }
-
-    }
-  hash_seq_term (&status);
-  return entry;
-}
-
 int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallInfo fcinfo)
 {
-  LWLockAcquire (&shared_memory_ptr->lock, LW_SHARED);
-  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
+  LWLockAcquire (shared_memory_ptr->lock, LW_SHARED);
+  if (!LWLockHeldByMe (shared_memory_ptr->lock))
     {
       ereport (ERROR, errmsg ("Cannot Acquire Shared Read Lock."));
     }
@@ -506,25 +533,35 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
                           "Cache-Calendars Size", convert_u_long_to_str (imcx_ptr->entry_count));
   // --
   int no_calendar_id_counter = 0;
-  for (unsigned long i = 0; i < imcx_ptr->calendar_count; i++)
+  for (int32 i = 0; i < imcx_ptr->calendar_count; i++)
     {
       Calendar *curr_calendar = imcx_ptr->calendars[i];
       if (curr_calendar == NULL)
         {
-          ereport (ERROR, errmsg ("Calendar Index '%lu' is NULL, cannot continue. Total Calendars '%lu'", i, imcx_ptr
-              ->calendar_count));
+          ereport (ERROR, errmsg ("Calendar Index '%d' is NULL, cannot continue. Total Calendars '%d'",
+                                  i,
+                                  imcx_ptr->calendar_count
+          ));
         }
       if (curr_calendar->id == 0)
         {
           no_calendar_id_counter++;
           continue;
         }
+      char slice_id_str[4];
+      int_to_str (slice_id_str, curr_calendar->id);
       add_row_to_2_col_tuple (p_metadata, tuplestorestate,
-                              "SliceType-Id", convert_u_long_to_str (curr_calendar->id));
+                              "SliceType-Id", slice_id_str);
+      char slic_idx_str[4];
+      int_to_str (slic_idx_str, i);
+      add_row_to_2_col_tuple (p_metadata, tuplestorestate,
+                              "   Index", slic_idx_str);
       add_row_to_2_col_tuple (p_metadata, tuplestorestate,
                               "   Name", curr_calendar->name);
+      char slice_dates_entries_str[10];
+      int_to_str (slice_dates_entries_str, curr_calendar->dates_size);
       add_row_to_2_col_tuple (p_metadata, tuplestorestate,
-                              "   Entries", convert_u_long_to_str (curr_calendar->dates_size));
+                              "   Entries", slice_dates_entries_str);
       add_row_to_2_col_tuple (p_metadata, tuplestorestate,
                               "   Page Map Size", convert_long_to_str (curr_calendar->page_map_size));
       add_row_to_2_col_tuple (p_metadata, tuplestorestate,
@@ -544,7 +581,7 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
         {
           for (int j = 0; j < curr_calendar->page_map_size; j++)
             {
-              ereport (INFO, errmsg ("PageMap Entry[%d]: %ld", j, curr_calendar->page_map[j]));
+              ereport (INFO, errmsg ("PageMap Entry[%d]: %d", j, curr_calendar->page_map[j]));
               add_row_to_2_col_tuple (p_metadata, tuplestorestate,
                                       "   PageMap Entry",
                                       convert_long_to_str (curr_calendar->page_map[j]));
@@ -554,7 +591,7 @@ int imcx_report_concrete (int showEntries, int showPageMapEntries, FunctionCallI
   add_row_to_2_col_tuple (p_metadata, tuplestorestate,
                           "Missing Slices (id==0)",
                           convert_int_to_str (no_calendar_id_counter));
-  LWLockRelease (&shared_memory_ptr->lock);
+  LWLockRelease (shared_memory_ptr->lock);
   ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Shared Read Lock Released."));
   return 0;
 }
@@ -576,8 +613,8 @@ Datum
 add_calendar_days_by_id (PG_FUNCTION_ARGS)
 {
   load_cache_concrete ();
-  LWLockAcquire (&shared_memory_ptr->lock, LW_SHARED);
-  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
+  LWLockAcquire (shared_memory_ptr->lock, LW_SHARED);
+  if (!LWLockHeldByMe (shared_memory_ptr->lock))
     {
       ereport (ERROR, errmsg ("Cannot Acquire Shared Read Lock."));
     }
@@ -612,19 +649,68 @@ add_calendar_days_by_id (PG_FUNCTION_ARGS)
       cal->dates[rs_idx]
   ));
   //
-  LWLockRelease (&shared_memory_ptr->lock);
+  LWLockRelease (shared_memory_ptr->lock);
   ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Shared Read Lock Released."));
   PG_RETURN_DATEADT (new_date);
 }
 
+void popuplate_hash ()
+{
+  LWLockAcquire (shared_memory_ptr->lock, LW_EXCLUSIVE);
+}
+
 PG_FUNCTION_INFO_V1(add_calendar_days_by_name);
+Datum
+add_calendar_days_by_name_ok (PG_FUNCTION_ARGS)
+{
+  // populate_cache ();
+
+  LWLockAcquire (shared_memory_ptr->lock, LW_SHARED);
+  if (!LWLockHeldByMe (shared_memory_ptr->lock))
+    {
+      ereport (ERROR, errmsg ("Cannot Acquire Shared Read Lock."));
+    }
+  ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Shared Read Lock Acquired."));
+
+  int32 input_date = PG_GETARG_INT32 (0);
+  int32 calendar_interval = PG_GETARG_INT32 (1);
+  const VarChar *calendar_name_text = PG_GETARG_VARCHAR_P (2);
+
+  // TODO: Convert to lowercase before looking
+
+  int calendar_name_size = VARSIZE(calendar_name_text) - VARHDRSZ;
+  char calendar_name[CALENDAR_NAME_MAX_LEN] = {0};
+  memcpy (calendar_name, (char *)VARDATA(calendar_name_text), calendar_name_size);
+
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Calendar Name: %s, Len: %d", calendar_name, calendar_name_size));
+
+  DateADT result_date = input_date + calendar_interval;
+  HTAB *ht = imcx_ptr->pg_calendar_name_hashtable;
+
+  bool entry_found = false;
+  const CalendarNameEntry *entry = hash_search (
+      ht,
+      calendar_name, HASH_FIND,
+      &entry_found);
+  if (entry_found)
+    {
+      ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Found Entry Name: %s", entry->key));
+
+      Calendar *calendar = imcx_ptr->calendars[entry->calendar_id];
+      result_date = input_date + calendar->id;
+    }
+  LWLockRelease (shared_memory_ptr->lock);
+  ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Shared Read Lock Released."));
+
+  PG_RETURN_DATEADT (result_date);
+}
 
 Datum
 add_calendar_days_by_name (PG_FUNCTION_ARGS)
 {
   load_cache_concrete ();
-  LWLockAcquire (&shared_memory_ptr->lock, LW_SHARED);
-  if (!LWLockHeldByMe (&shared_memory_ptr->lock))
+  LWLockAcquire (shared_memory_ptr->lock, LW_SHARED);
+  if (!LWLockHeldByMe (shared_memory_ptr->lock))
     {
       ereport (ERROR, errmsg ("Cannot Acquire Shared Read Lock."));
     }
@@ -632,27 +718,36 @@ add_calendar_days_by_name (PG_FUNCTION_ARGS)
   // Vars
   int32 input_date = PG_GETARG_INT32 (0);
   int32 calendar_interval = PG_GETARG_INT32 (1);
-  const text *calendar_name = PG_GETARG_TEXT_P (2);
-  // Convert Name to CString
-  const char *calendar_name_str = text_to_cstring (calendar_name);
+
+  const VarChar *calendar_name_text = PG_GETARG_VARCHAR_P (2);
+
+  // TODO: Convert to lowercase before looking
+
+  int calendar_name_size = VARSIZE(calendar_name_text) - VARHDRSZ;
+  char calendar_name[CALENDAR_NAME_MAX_LEN] = {0};
+  memcpy (calendar_name, (char *)VARDATA(calendar_name_text), calendar_name_size);
+
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg ("Calendar Name: %s, Len: %d", calendar_name, calendar_name_size));
+
+
   // Lookup for the Calendar
   int calendar_id = 0;
-  ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Trying to find Calendar with name '%s'", calendar_name_str));
+  ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Trying to find Calendar with name '%s'", calendar_name));
   int get_calendar_result =
       pg_get_calendar_id_by_name (
           imcx_ptr,
-          calendar_name_str,
+          calendar_name,
           &calendar_id
       );
   if (get_calendar_result != RET_SUCCESS)
     {
       if (get_calendar_result == RET_ERROR_NOT_FOUND)
-        ereport (ERROR, errmsg ("Calendar does not exists."));
+        ereport (ERROR, errmsg ("Calendar '%s' does not exists.", calendar_name));
       if (get_calendar_result == RET_ERROR_UNSUPPORTED_OP)
         ereport (ERROR, errmsg ("Cannot get calendar by name. (Out of Bounds)"));
     }
   Calendar *calendar = pg_get_calendar (imcx_ptr, calendar_id);
-  ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Found Calendar with Name '%s' and ID '%d'", calendar_name_str, calendar->id));
+  ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Found Calendar with Name '%s' and ID '%d'", calendar_name, calendar->id));
   unsigned long fd_idx = 0;
   unsigned long rs_idx = 0;
   DateADT result_date;
@@ -676,7 +771,7 @@ add_calendar_days_by_name (PG_FUNCTION_ARGS)
       rs_idx,
       calendar->dates[rs_idx]
   ));
-  LWLockRelease (&shared_memory_ptr->lock);
+  LWLockRelease (shared_memory_ptr->lock);
   ereport (DEF_DEBUG_LOG_LEVEL, errmsg ("Shared Read Lock Released."));
   PG_RETURN_DATEADT (result_date);
 }

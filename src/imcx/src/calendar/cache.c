@@ -5,21 +5,22 @@
 #include <limits.h>
 #include "imcx/src/include/cache.h"
 
-int pg_cache_attach (IMCX *imcx)
+int pg_init_hashtable (IMCX *imcx)
 {
-  // Attach Names Hashtable
   HASHCTL info;
   memset (&info, 0, sizeof (info));
   info.keysize = CALENDAR_NAME_MAX_LEN;
   info.entrysize = sizeof (CalendarNameEntry);
   imcx->pg_calendar_name_hashtable = ShmemInitHash (CALENDAR_NAMES_HASH_NAME,
-                                                    (long)imcx->calendar_count,
-                                                    (long)imcx->calendar_count,
+//                                                    (long)imcx->calendar_count,
+//                                                    (long)imcx->calendar_count * 10,
+                                                    100,
+                                                    1000,
                                                     &info,
-                                                    CALENDAR_NAMES_HASH_FLAGS);
+                                                    HASH_ELEM | HASH_STRINGS);
   if (imcx->pg_calendar_name_hashtable == NULL)
     {
-      return RET_ERROR_CANNOT_ATTACH_SHMEM;
+      return RET_ERROR_CANNOT_ALLOCATE;
     }
   return RET_SUCCESS;
 }
@@ -30,7 +31,7 @@ int pg_cache_init (IMCX *imcx, int min_calendar_id, int max_calendar_id)
     {
       return RET_ERROR_MIN_GT_MAX;
     }
-  unsigned long calendar_count = max_calendar_id - min_calendar_id + 1;
+  int32 calendar_count = max_calendar_id - min_calendar_id + 1;
   // Allocate Calendars
   imcx->calendars = (Calendar **)ShmemAlloc (calendar_count * sizeof (Calendar *));
   if (imcx->calendars == NULL)
@@ -39,38 +40,20 @@ int pg_cache_init (IMCX *imcx, int min_calendar_id, int max_calendar_id)
     }
   // Allocate & Init each Calendar
   memset (imcx->calendars, 0, calendar_count * sizeof (Calendar *));
-  for (unsigned long calendar_idx = 0; calendar_idx < calendar_count; calendar_idx++)
+  for (int32 calendar_idx = 0; calendar_idx < calendar_count; calendar_idx++)
     {
-      imcx->calendars[calendar_idx] = ShmemAlloc (sizeof (Calendar));
-      memset (imcx->calendars[calendar_idx], 0, sizeof (Calendar));
+      imcx->calendars[calendar_idx] = (Calendar *)ShmemAlloc (sizeof (Calendar));
       if (imcx->calendars[calendar_idx] == NULL)
         {
           return RET_ERROR_CANNOT_ALLOCATE;
         }
+      memset (imcx->calendars[calendar_idx], 0, sizeof (Calendar));
     }
   // Init control Vars
   imcx->calendar_count = calendar_count;
   imcx->entry_count = 0;
   imcx->min_calendar_id = min_calendar_id;
-  if (imcx->calendar_count > LONG_MAX)
-    {
-      // Calendar_count is too big.
-      return RET_ERROR_UNSUPPORTED_OP;
-    }
-  // Init Names HashTable
-  HASHCTL info;
-  memset (&info, 0, sizeof (info));
-  info.keysize = CALENDAR_NAME_MAX_LEN;
-  info.entrysize = sizeof (CalendarNameEntry);
-  imcx->pg_calendar_name_hashtable = ShmemInitHash (CALENDAR_NAMES_HASH_NAME,
-                                                    (long)calendar_count,
-                                                    (long)calendar_count,
-                                                    &info,
-                                                    CALENDAR_NAMES_HASH_FLAGS);
-  if (imcx->pg_calendar_name_hashtable == NULL)
-    {
-      return RET_ERROR_CANNOT_ALLOCATE;
-    }
+
   return RET_SUCCESS;
 }
 
@@ -85,9 +68,9 @@ int32 get_calendar_index (IMCX *imcx, int calendar_id)
   return calendar_id - imcx->min_calendar_id;
 }
 
-int pg_calendar_init (Calendar *calendar, int calendar_id, unsigned long entry_size, unsigned long *entry_count_ptr)
+int pg_calendar_init (Calendar *calendar, int32 calendar_id, int32 entry_size, int32 *entry_count_ptr)
 {
-  calendar->dates = (int *)ShmemAlloc (entry_size * sizeof (int32));
+  calendar->dates = (int32 *)ShmemAlloc (entry_size * sizeof (int32));
   if (calendar->dates == NULL)
     {
       return RET_ERROR_CANNOT_ALLOCATE;
@@ -99,16 +82,15 @@ int pg_calendar_init (Calendar *calendar, int calendar_id, unsigned long entry_s
   return RET_SUCCESS;
 }
 
-int pg_set_calendar_name (IMCX *imcx, Calendar *calendar, const char *calendar_name)
+int pg_set_calendar_name (IMCX *imcx, Calendar *calendar, const char *calendar_name_input)
 {
-  // Allocate Key
-  char *key_calendar_name = ShmemAlloc ((strlen (calendar_name) + 1) * sizeof (char));
-  strcpy (key_calendar_name, calendar_name);
+  char calendar_name[CALENDAR_NAME_MAX_LEN] = {0};
+  strcpy (calendar_name, calendar_name_input);
   // Create Entry
   bool entry_found = false;
   CalendarNameEntry *entry = hash_search (
       imcx->pg_calendar_name_hashtable,
-      key_calendar_name,
+      calendar_name,
       HASH_ENTER,
       &entry_found
   );
@@ -127,14 +109,10 @@ int pg_set_calendar_name (IMCX *imcx, Calendar *calendar, const char *calendar_n
 
 int pg_get_calendar_id_by_name (IMCX *imcx, const char *calendar_name, int *calendar_id)
 {
-  char *calendar_name_ll = strdup (calendar_name);
-  // Lowercase user input
-  str_to_lowercase_self (calendar_name_ll);
-  // Find the Calendar
   bool entry_found = false;
   const CalendarNameEntry *entry = hash_search (
       imcx->pg_calendar_name_hashtable,
-      calendar_name_ll, HASH_FIND,
+      calendar_name, HASH_FIND,
       &entry_found);
   if (entry_found)
     {

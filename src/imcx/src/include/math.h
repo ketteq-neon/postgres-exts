@@ -21,7 +21,7 @@
  * @param entry_count Count of intervals in the calendar.
  * @return page size as integer.
  */
-int calculate_page_size (long first_date, long last_date, ulong entry_count);
+int32 calculate_page_size (long first_date, long last_date, ulong entry_count);
 
 /**
  * Returns the first entry of the given date that is inside the given calendar.

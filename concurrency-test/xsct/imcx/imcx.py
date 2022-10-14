@@ -14,8 +14,8 @@ db_user = 'postgres'
 db_password = '123456'
 db_name = 'ketteq_7f046426-b221-41e7-9a12-98d967d3becc'
 
-cc_threads = 2
-cc_add_days_repetitions = 1
+cc_threads = 50
+cc_add_days_repetitions = 100
 
 # Queries
 
@@ -97,11 +97,11 @@ class IMCXThread:
                 self.__status(f'kq_invalidate_calendar_cache() -> FAILED -> Time: {time.time() - start}', True)
 
     def __disconnect(self):
-        self.__connection.commit()
+        self.__connection.close()
 
     def __thread_main_target(self):
         self.__connect()
-        self.__invalidate_cache()
+        # self.__invalidate_cache()
         self.__add_days()
         self.__disconnect()
         self.__status(f'Thread {self.__thread_number} completed. '
@@ -132,9 +132,9 @@ def __init_db(status_observable: StatusUpdate):
 
 def main(suite_vars: SuiteVars):
     suite_vars.status_observable.emit(f'> Starting In-Memory Calendar Extension -> Threads: {cc_threads}', True)
-    if not __init_db(suite_vars.status_observable):
-        suite_vars.status_observable.emit(f'> The database cannot be initialized, check server hostname', True)
-        exit(-1)
+    # if not __init_db(suite_vars.status_observable):
+    #     suite_vars.status_observable.emit(f'> The database cannot be initialized, check server hostname', True)
+    #     exit(-1)
     threads = []
     latch = CountdownLatch(cc_threads)
     for c in range(cc_threads):
