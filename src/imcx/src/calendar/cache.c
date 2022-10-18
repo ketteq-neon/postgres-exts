@@ -52,9 +52,9 @@ int32 pg_cache_init(IMCX *imcx, int32 min_calendar_id, int32 max_calendar_id) {
 }
 
 Calendar *pg_get_calendar(IMCX *imcx, int32 calendar_id) {
-  if (IS_DEBUG) {
-    ereport(DEBUG2, errmsg("CalendarId=%d, MinCalendarId=%d", calendar_id, imcx->min_calendar_id));
-  }
+#ifndef NDEBUG
+  ereport(DEBUG2, errmsg("CalendarId=%d, MinCalendarId=%d", calendar_id, imcx->min_calendar_id));
+#endif
   return imcx->calendars[get_calendar_index(imcx, calendar_id)];
 }
 
@@ -94,9 +94,9 @@ int32 pg_set_calendar_name(IMCX *imcx, Calendar *calendar, const char *calendar_
   strcpy(entry->key, calendar_name);
   strcpy(calendar->name, calendar_name);
   entry->calendar_id = calendar->id;
-  if (IS_DEBUG) {
-    ereport(DEBUG2, errmsg("Calendar name for calendar id = '%d' set to '%s'", calendar->id, entry->key));
-  }
+#ifndef NDEBUG
+  ereport(DEBUG2, errmsg("Calendar name for calendar id = '%d' set to '%s'", calendar->id, entry->key));
+#endif
   return RET_SUCCESS;
 }
 
