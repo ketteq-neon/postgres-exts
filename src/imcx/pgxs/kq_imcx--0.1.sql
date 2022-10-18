@@ -7,7 +7,7 @@
 
 -- Gives information about the extension
 CREATE OR REPLACE FUNCTION kq_calendar_cache_info()
-    RETURNS TABLE ("property" text, "calendar_id" text)
+    RETURNS TABLE ("property" text, "value" text)
 STRICT
     LANGUAGE c AS 'MODULE_PATHNAME', 'calendar_info';
 
@@ -19,7 +19,7 @@ STRICT
 
 -- Displays the contents of the cache.
 CREATE FUNCTION kq_calendar_cache_report(boolean, boolean)
-    RETURNS TABLE ("property" text, "calendar_id" text)
+    RETURNS TABLE ("property" text, "value" text)
 STRICT
     LANGUAGE c AS 'MODULE_PATHNAME', 'calendar_report';
 

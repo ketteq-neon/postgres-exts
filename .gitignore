@@ -3,6 +3,7 @@ build-debug
 cmake-build
 cmake-build-debug
 /googletest/
+/concurrency-test/*_result.txt
 /concurrency-test/venv/
 /concurrency-test/build/
 /concurrency-test/dist/

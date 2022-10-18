@@ -20,7 +20,7 @@
 #include <storage/shmem.h>
 #include <miscadmin.h>
 
-int pg_init_hashtable(IMCX *imcx);
+int32 pg_init_hashtable(IMCX *imcx);
 
 /**
  * Initializes main struct (IMCX), contains the calendars and control variables.
@@ -31,7 +31,7 @@ int pg_init_hashtable(IMCX *imcx);
  *         RET_ERROR_CANNOT_ALLOCATE = Cannot Allocate Calendars.
  *         RET_SUCCESS = SUCCESS.
  */
-int pg_cache_init (IMCX *imcx, int min_calendar_id, int max_calendar_id);
+int32 pg_cache_init(IMCX *imcx, int32 min_calendar_id, int32 max_calendar_id);
 
 /**
  * Gets the calendar based on its ID. Can be used before calendar initialization.
@@ -39,9 +39,9 @@ int pg_cache_init (IMCX *imcx, int min_calendar_id, int max_calendar_id);
  * @param calendar_id Calendar ID
  * @return
  */
-Calendar *pg_get_calendar (IMCX *imcx, int calendar_id);
+Calendar *pg_get_calendar(IMCX *imcx, int32 calendar_id);
 
-int32 get_calendar_index (IMCX *imcx, int calendar_id);
+int32 get_calendar_index(IMCX *imcx, int32 calendar_id);
 
 /**
  * Allocates and initializes a Calendar.
@@ -54,7 +54,7 @@ int32 get_calendar_index (IMCX *imcx, int calendar_id);
  *         RET_ERROR_UNSUPPORTED_OP = Cache already finished, call invalidate to use init again.
  *         RET_SUCCESS = SUCCESS.
  */
-int pg_calendar_init (Calendar *calendar, int32 calendar_id, int32 entry_size, int32 *entry_count_ptr);
+int32 pg_calendar_init(Calendar *calendar, int32 calendar_id, int32 entry_size, int32 *entry_count_ptr);
 
 /**
  * Sets a name for a given calendar index.
@@ -63,7 +63,7 @@ int pg_calendar_init (Calendar *calendar, int32 calendar_id, int32 entry_size, i
  * @param calendar_name Constant string containing the name of the calendar.
  * @return RET_SUCCESS = SUCCESS.
  */
-int pg_set_calendar_name (IMCX *imcx, Calendar *calendar, const char *calendar_name);
+int32 pg_set_calendar_name(IMCX *imcx, Calendar *calendar, const char *calendar_name);
 
 /**
  * Gets the Calendar id by its given name.
@@ -74,7 +74,7 @@ int pg_set_calendar_name (IMCX *imcx, Calendar *calendar, const char *calendar_n
  *         RET_ERROR_UNSUPPORTED_OP = Calendar Id is too big or invalid.
  *         RET_SUCCESS = SUCCESS.
  */
-int pg_get_calendar_id_by_name (IMCX *imcx, const char *calendar_name, int *calendar_id);
+int32 pg_get_calendar_id_by_name(IMCX *imcx, const char *calendar_name, int32 *calendar_id);
 
 /**
  * Calculates and sets the page size for the given calendar pointer
@@ -82,13 +82,7 @@ int pg_get_calendar_id_by_name (IMCX *imcx, const char *calendar_name, int *cale
  * @return RET_ERROR_UNSUPPORTED_OP = Calculated PageSize is 0, cannot continue.
  *         RET_SUCCESS = SUCCESS.
  */
-int pg_init_page_size (Calendar *calendar);
-
-/**
- * Finishes the creation of the cache. Must be called when the calendars are loaded.
- * @param imcx Pointer to an initialized IMCX struct.
- */
-void cache_finish (IMCX *imcx);
+int32 pg_init_page_size(Calendar *calendar);
 
 /**
  * Calculates the next or previous date for a given number of intervals. The next or previous date will
@@ -107,14 +101,14 @@ void cache_finish (IMCX *imcx);
  *         RET_ADD_DAYS_POSITIVE = The calculated date is out of bounds from the right, result_date will contain INT32_MAX.
  *         RET_SUCCESS = SUCCESS.
  */
-int add_calendar_days (
+int32 add_calendar_days(
     const IMCX *imcx,
     Calendar *calendar,
-    long input_date,
-    long interval,
+    int32 input_date,
+    int32 interval,
     int32 *result_date,
-    unsigned long *first_date_idx,
-    unsigned long *result_date_idx
+    int32 *first_date_idx,
+    int32 *result_date_idx
 );
 
 /**
@@ -123,6 +117,6 @@ int add_calendar_days (
  * @return  RET_ERROR_UNSUPPORTED_OP = The cache is not filled.
  *          RET_SUCCESS = SUCCESS.
  */
-int cache_invalidate (IMCX *imcx);
+int32 cache_invalidate(IMCX *imcx);
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_CACHE_H

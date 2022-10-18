@@ -101,7 +101,7 @@ class IMCXThread:
 
     def __thread_main_target(self):
         self.__connect()
-        # self.__invalidate_cache()
+        self.__invalidate_cache()
         self.__add_days()
         self.__disconnect()
         self.__status(f'Thread {self.__thread_number} completed. '
