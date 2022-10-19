@@ -20,6 +20,12 @@
 #include <storage/shmem.h>
 #include <miscadmin.h>
 
+/**
+ * Initializes or attach the Calendar Names hashtable.
+ * @param imcx Pointer to allocated IMCX struct
+ * @return RET_ERROR_CANNOT_ALLOCATE = Hashtable cannot be allocated in memory or cannot be attached.
+ *         RET_SUCCESS = SUCCESS
+ */
 int32 pg_init_hashtable(IMCX *imcx);
 
 /**
@@ -37,11 +43,17 @@ int32 pg_cache_init(IMCX *imcx, int32 min_calendar_id, int32 max_calendar_id);
  * Gets the calendar based on its ID. Can be used before calendar initialization.
  * @param imcx Pointer to an initialized IMCX struct.
  * @param calendar_id Calendar ID
- * @return
+ * @return Pointer to the Calendar of the given ID
  */
-Calendar *pg_get_calendar(IMCX *imcx, int32 calendar_id);
+Calendar *pg_get_calendar(const IMCX *imcx, int32 calendar_id);
 
-int32 get_calendar_index(IMCX *imcx, int32 calendar_id);
+/**
+ * Gets the calendar index based on its ID. Can be used before calendar initialization.
+ * @param imcx Pointer to an initialized IMCX struct.
+ * @param calendar_id Calendar ID
+ * @return The calendar index of the given ID
+ */
+int32 get_calendar_index(const IMCX *imcx, int32 calendar_id);
 
 /**
  * Allocates and initializes a Calendar.
@@ -103,7 +115,7 @@ int32 pg_init_page_size(Calendar *calendar);
  */
 int32 add_calendar_days(
     const IMCX *imcx,
-    Calendar *calendar,
+    const Calendar *calendar,
     int32 input_date,
     int32 interval,
     int32 *result_date,

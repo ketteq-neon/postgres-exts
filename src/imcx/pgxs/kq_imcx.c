@@ -21,7 +21,7 @@ void _PG_init(void) {
   RequestAddinShmemSpace((size_t)SHMEM_REQUESTED_MEMORY);
   RequestNamedLWLockTranche(TRANCHE_NAME, 1);
   prev_shmem_startup_hook = shmem_startup_hook;
-  shmem_startup_hook = init_shared_memory;
+  shmem_startup_hook = &init_shared_memory;
   ereport (INFO, errmsg("KetteQ In-Memory Calendar Extension Loaded."));
 }
 
@@ -112,7 +112,6 @@ static void init_shared_memory() {
 }
 
 void ensure_cache_populated() {
-
   if (imcx_ptr->cache_filled) {
 #ifndef NDEBUG
     ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Cache already filled. Skipping slice loading."));
@@ -588,7 +587,7 @@ add_calendar_days_by_id(PG_FUNCTION_ARGS) {
   int32 date = PG_GETARG_INT32 (0);
   int32 calendar_interval = PG_GETARG_INT32 (1);
   int32 calendar_id = PG_GETARG_INT32 (2);
-  Calendar *cal = pg_get_calendar(imcx_ptr, calendar_id);
+  const Calendar *cal = pg_get_calendar(imcx_ptr, calendar_id);
   //
   int32 fd_idx;
   int32 rs_idx;
@@ -629,8 +628,6 @@ void popuplate_hash() {
 PG_FUNCTION_INFO_V1(add_calendar_days_by_name);
 Datum
 add_calendar_days_by_name_ok(PG_FUNCTION_ARGS) {
-  // populate_cache ();
-
   LWLockAcquire(shared_memory_ptr->lock, LW_SHARED);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
     ereport (ERROR, errmsg("Cannot Acquire Shared Read Lock."));
@@ -642,12 +639,11 @@ add_calendar_days_by_name_ok(PG_FUNCTION_ARGS) {
   int32 input_date = PG_GETARG_INT32 (0);
   int32 calendar_interval = PG_GETARG_INT32 (1);
   const VarChar *calendar_name_text = PG_GETARG_VARCHAR_P (2);
-
-  // TODO: Convert to lowercase before looking
-
+  // Calendar Name
   int32 calendar_name_size = VARSIZE(calendar_name_text) - VARHDRSZ;
   char calendar_name[CALENDAR_NAME_MAX_LEN] = {0};
   memcpy(calendar_name, (char *)VARDATA(calendar_name_text), calendar_name_size);
+  str_to_lowercase(calendar_name);
 #ifndef NDEBUG
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Calendar Name: %s, Len: %d", calendar_name, calendar_name_size));
 #endif
@@ -664,8 +660,7 @@ add_calendar_days_by_name_ok(PG_FUNCTION_ARGS) {
 #ifndef NDEBUG
     ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Found Entry Name: %s", entry->key));
 #endif
-
-    Calendar *calendar = imcx_ptr->calendars[entry->calendar_id];
+    const Calendar *calendar = imcx_ptr->calendars[entry->calendar_id];
     result_date = input_date + calendar->id;
   }
   LWLockRelease(shared_memory_ptr->lock);
@@ -689,20 +684,16 @@ add_calendar_days_by_name(PG_FUNCTION_ARGS) {
   // Vars
   int32 input_date = PG_GETARG_INT32 (0);
   int32 calendar_interval = PG_GETARG_INT32 (1);
-
   const VarChar *calendar_name_text = PG_GETARG_VARCHAR_P (2);
-
-  // TODO: Convert to lowercase before looking
-
+  // Calendar Name
   int32 calendar_name_size = VARSIZE(calendar_name_text) - VARHDRSZ;
   char calendar_name[CALENDAR_NAME_MAX_LEN] = {0};
   memcpy(calendar_name, (char *)VARDATA(calendar_name_text), calendar_name_size);
-
+  // To Lowercase
+  str_to_lowercase(calendar_name);
 #ifndef NDEBUG
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Calendar Name: %s, Len: %d", calendar_name, calendar_name_size));
 #endif
-
-
   // Lookup for the Calendar
   int32 calendar_id = 0;
 #ifndef NDEBUG
@@ -720,7 +711,7 @@ add_calendar_days_by_name(PG_FUNCTION_ARGS) {
     if (get_calendar_result == RET_ERROR_UNSUPPORTED_OP)
       ereport (ERROR, errmsg("Cannot get calendar by name. (Out of Bounds)"));
   }
-  Calendar *calendar = pg_get_calendar(imcx_ptr, calendar_id);
+  const Calendar *calendar = pg_get_calendar(imcx_ptr, calendar_id);
 #ifndef NDEBUG
   ereport (DEF_DEBUG_LOG_LEVEL, errmsg("Found Calendar with Name '%s' and ID '%d'", calendar_name, calendar->id));
 #endif

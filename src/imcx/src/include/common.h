@@ -25,17 +25,16 @@
 #define RET_ADD_DAYS_NEGATIVE (-9) // Add Days: Result Date is to the left (Negative).
 #define RET_ADD_DAYS_POSITIVE (-10) // Add Days: Result date is to the right (Positive).
 
-#define CALENDAR_NAME_MAX_LEN 90
-#define CALENDAR_NAMES_HASH_NAME "KQ_IMCX_CAL_NAMES_SMHTAB"
-#define DEF_DEBUG_LOG_LEVEL DEBUG1
+#define CALENDAR_NAME_MAX_LEN 90 // Max Length of Calendar Name
+#define DEF_DEBUG_LOG_LEVEL DEBUG1 // Default Logging Level, Messages only available in debug builds.
 
 /**
  * Structure for Calendar name entries inside the a hashmap.
  */
 typedef struct {
-  char key[CALENDAR_NAME_MAX_LEN];
-  int32 calendar_id;
-} CalendarNameEntry;
+  char key[CALENDAR_NAME_MAX_LEN]; // Calendar Name
+  int32 calendar_id; // Calendar Id
+} CalendarNameEntry; // Hashtable entry that contains the calendar id, can be found using the "key" Calendar Name.
 
 /**
  * Calendar struct, this is the main struct for calendars, inside we can find the id,
@@ -54,7 +53,8 @@ typedef struct {
 
 /**
  * The IMCX struct is the container struct for an In-Memory Calendar Extension (IMCX) instance, inside of the
- * instance, several calendars can be loaded.
+ * instance, several calendars can be loaded. This instance should be allocated in 'preload' time, requiring installing
+ * the extension in the 'preload_shared_libraries'..
  */
 typedef struct {
   Calendar **calendars; // Calendars contained in the ICMX struct
@@ -62,7 +62,7 @@ typedef struct {
   int32 entry_count; // Count of Entries (From all Calendars)
   int32 min_calendar_id; // Min calendar ID, used as offset to set the calendar indices
   bool cache_filled; // Control variable set to TRUE when the `cache_finish()` function is called.
-  HTAB *pg_calendar_name_hashtable;
+  HTAB *pg_calendar_name_hashtable; // Postgres' Hashtable that contains the names of the slices/calendars.
 } IMCX;
 
 #endif //KETTEQ_POSTGRESQL_EXTENSIONS_COMMON_H

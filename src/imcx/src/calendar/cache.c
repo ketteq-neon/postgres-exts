@@ -11,7 +11,7 @@ int32 pg_init_hashtable(IMCX *imcx) {
   memset(&info, 0, sizeof(info));
   info.keysize = CALENDAR_NAME_MAX_LEN;
   info.entrysize = sizeof(CalendarNameEntry);
-  imcx->pg_calendar_name_hashtable = ShmemInitHash(CALENDAR_NAMES_HASH_NAME,
+  imcx->pg_calendar_name_hashtable = ShmemInitHash("KQ_IMCX_CAL_NAMES_SMHTAB",
 //                                                    (long)imcx->calendar_count,
 //                                                    (long)imcx->calendar_count * 10,
                                                    100,
@@ -51,14 +51,14 @@ int32 pg_cache_init(IMCX *imcx, int32 min_calendar_id, int32 max_calendar_id) {
   return RET_SUCCESS;
 }
 
-Calendar *pg_get_calendar(IMCX *imcx, int32 calendar_id) {
+Calendar *pg_get_calendar(const IMCX *imcx, int32 calendar_id) {
 #ifndef NDEBUG
   ereport(DEBUG2, errmsg("CalendarId=%d, MinCalendarId=%d", calendar_id, imcx->min_calendar_id));
 #endif
   return imcx->calendars[get_calendar_index(imcx, calendar_id)];
 }
 
-int32 get_calendar_index(IMCX *imcx, int32 calendar_id) {
+int32 get_calendar_index(const IMCX *imcx, int32 calendar_id) {
   return calendar_id - imcx->min_calendar_id;
 }
 
@@ -150,7 +150,7 @@ int32 pg_init_page_size(Calendar *calendar) {
 
 int32 add_calendar_days(
     const IMCX *imcx,
-    Calendar *calendar,
+    const Calendar *calendar,
     int32 input_date,
     int32 interval,
     int32 *result_date,
@@ -202,7 +202,7 @@ int32 cache_invalidate(IMCX *imcx) {
   }
   // Free Name HashTable
   HASH_SEQ_STATUS status;
-  void *entry = NULL;
+  const void *entry = NULL;
   hash_seq_init(&status, imcx->pg_calendar_name_hashtable);
   while ((entry = hash_seq_search(&status)) != 0) {
     bool found = false;
