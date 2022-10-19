@@ -17,16 +17,11 @@ void _PG_init(void) {
                 "that kq_imcx should be at the beginning of "
                 "shared_preload_libraries.")));
   }
-
   init_gucs();
-
   RequestAddinShmemSpace((size_t)SHMEM_REQUESTED_MEMORY);
   RequestNamedLWLockTranche(TRANCHE_NAME, 1);
-
   prev_shmem_startup_hook = shmem_startup_hook;
   shmem_startup_hook = init_shared_memory;
-//  init_shared_memory ();
-
   ereport (INFO, errmsg("KetteQ In-Memory Calendar Extension Loaded."));
 }
 
@@ -116,7 +111,7 @@ static void init_shared_memory() {
   ereport(INFO, errmsg("Initialized Shared Memory."));
 }
 
-void load_cache_concrete() {
+void ensure_cache_populated() {
 
   if (imcx_ptr->cache_filled) {
 #ifndef NDEBUG
@@ -138,25 +133,19 @@ void load_cache_concrete() {
 #endif
     return; // Do nothing if the cache is already filled
   }
-
   // Vars
   int32 prev_calendar_id = 0; // Previous Calendar ID
   int32 entry_count = 0; // Entry Counter
   // Row Control
   bool entry_is_null; // Pointer to boolean, TRUE if the last entry was NULL
-  // Query #1, Get MIN_ID and MAX_ID of Calendars
-  char const *sql_get_min_max = q1_get_cal_min_max_id; // 1 - 74079
-  // Query #2, Get Calendar's Entries Count and Names
-  char const *sql_get_entries_count_per_calendar_id = q2_get_cal_entry_count;
-  // Query #3, Get Entries of Calendars
-  char const *sql_get_entries = q3_get_cal_entries;
   // Connect to SPI
   int32 spi_connect_result = SPI_connect();
   if (spi_connect_result < 0) {
     ereport(ERROR, errmsg("SPI_connect returned %d", spi_connect_result));
   }
   // Execute Q1, get the min and max id's
-  if (SPI_execute(sql_get_min_max, true, 0) != SPI_OK_SELECT || SPI_processed == 0) {
+  // Query #1, Get MIN_ID and MAX_ID of Calendars
+  if (SPI_execute(q1_get_cal_min_max_id, true, 0) != SPI_OK_SELECT || SPI_processed == 0) {
     SPI_finish();
     ereport(ERROR, errmsg("No calendars."));
   }
@@ -185,8 +174,9 @@ void load_cache_concrete() {
       max_value
   ));
 #endif
+  // Query #2, Get Calendar's Entries Count and Names
   // Init the Structs date property with the count of the entries
-  if (SPI_execute(sql_get_entries_count_per_calendar_id, true, 0) != SPI_OK_SELECT || SPI_processed == 0) {
+  if (SPI_execute(q2_get_cal_entry_count, true, 0) != SPI_OK_SELECT || SPI_processed == 0) {
     SPI_finish();
     ereport(ERROR, errmsg("Cannot count calendar's entries."));
   }
@@ -258,8 +248,9 @@ void load_cache_concrete() {
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Executing Q3"));
 #endif
   // -> Exec Q3
+  // Query #3, Get Entries of Calendars
   // Check Results
-  if (SPI_execute(sql_get_entries, true, 0) != SPI_OK_SELECT || SPI_processed == 0) {
+  if (SPI_execute(q3_get_cal_entries, true, 0) != SPI_OK_SELECT || SPI_processed == 0) {
     SPI_finish();
     ereport(ERROR, errmsg("No calendar entries."));
   }
@@ -343,7 +334,7 @@ void add_row_to_1_col_tuple(
 PG_FUNCTION_INFO_V1(calendar_info);
 
 Datum calendar_info(PG_FUNCTION_ARGS) {
-  load_cache_concrete();
+  ensure_cache_populated();
   LWLockAcquire(shared_memory_ptr->lock, LW_SHARED);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
     ereport (ERROR, errmsg("Cannot Acquire Shared Read Lock."));
@@ -449,7 +440,7 @@ Datum calendar_invalidate(PG_FUNCTION_ARGS) {
   PG_RETURN_VOID ();
 }
 
-int32 imcx_report_concrete(int32 showEntries, int32 showPageMapEntries, FunctionCallInfo fcinfo) {
+int32 calendar_report_concrete(int32 showEntries, int32 showPageMapEntries, FunctionCallInfo fcinfo) {
   LWLockAcquire(shared_memory_ptr->lock, LW_SHARED);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
     ereport (ERROR, errmsg("Cannot Acquire Shared Read Lock."));
@@ -574,10 +565,10 @@ int32 imcx_report_concrete(int32 showEntries, int32 showPageMapEntries, Function
 PG_FUNCTION_INFO_V1(calendar_report);
 
 Datum calendar_report(PG_FUNCTION_ARGS) {
-  load_cache_concrete();
+  ensure_cache_populated();
   int32 showEntries = PG_GETARG_INT32 (0);
   int32 showPageMapEntries = PG_GETARG_INT32 (1);
-  imcx_report_concrete(showEntries, showPageMapEntries, fcinfo);
+  calendar_report_concrete(showEntries, showPageMapEntries, fcinfo);
   return (Datum)0;
 }
 
@@ -585,7 +576,7 @@ PG_FUNCTION_INFO_V1(add_calendar_days_by_id);
 
 Datum
 add_calendar_days_by_id(PG_FUNCTION_ARGS) {
-  load_cache_concrete();
+  ensure_cache_populated();
   LWLockAcquire(shared_memory_ptr->lock, LW_SHARED);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
     ereport (ERROR, errmsg("Cannot Acquire Shared Read Lock."));
@@ -687,7 +678,7 @@ add_calendar_days_by_name_ok(PG_FUNCTION_ARGS) {
 
 Datum
 add_calendar_days_by_name(PG_FUNCTION_ARGS) {
-  load_cache_concrete();
+  ensure_cache_populated();
   LWLockAcquire(shared_memory_ptr->lock, LW_SHARED);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
     ereport (ERROR, errmsg("Cannot Acquire Shared Read Lock."));

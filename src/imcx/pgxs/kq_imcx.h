@@ -44,7 +44,7 @@ void _PG_fini(void);
 // Internal Functions
 void init_gucs();
 static void init_shared_memory();
-void load_cache_concrete();
+void ensure_cache_populated();
 
 // Exported Functions
 Datum calendar_info(PG_FUNCTION_ARGS);

@@ -10,6 +10,7 @@ cmake-build-debug
 /concurrency-test/xsct/__pycache__/
 /concurrency-test/xsct/common/__pycache__/
 /concurrency-test/xsct/imcx/__pycache__/
+*.pyc
 .idea
 .DS_Store
 *.egg-info
