@@ -35,7 +35,6 @@ typedef struct {
 
 IMCXSharedMemory *shared_memory_ptr;
 IMCX *imcx_ptr;
-HTAB *imcx_calendar_name_hashtable;
 
 char *q1_get_cal_min_max_id = DEF_Q1_GET_CALENDAR_IDS;
 char *q2_get_cal_entry_count = DEF_Q2_GET_CAL_ENTRY_COUNT;
@@ -626,51 +625,6 @@ void popuplate_hash() {
 }
 
 PG_FUNCTION_INFO_V1(add_calendar_days_by_name);
-Datum
-add_calendar_days_by_name_ok(PG_FUNCTION_ARGS) {
-  LWLockAcquire(shared_memory_ptr->lock, LW_SHARED);
-  if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
-    ereport (ERROR, errmsg("Cannot Acquire Shared Read Lock."));
-  }
-#ifndef NDEBUG
-  ereport (DEF_DEBUG_LOG_LEVEL, errmsg("Shared Read Lock Acquired."));
-#endif
-
-  int32 input_date = PG_GETARG_INT32 (0);
-  int32 calendar_interval = PG_GETARG_INT32 (1);
-  const VarChar *calendar_name_text = PG_GETARG_VARCHAR_P (2);
-  // Calendar Name
-  int32 calendar_name_size = VARSIZE(calendar_name_text) - VARHDRSZ;
-  char calendar_name[CALENDAR_NAME_MAX_LEN] = {0};
-  memcpy(calendar_name, (char *)VARDATA(calendar_name_text), calendar_name_size);
-  str_to_lowercase(calendar_name);
-#ifndef NDEBUG
-  ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Calendar Name: %s, Len: %d", calendar_name, calendar_name_size));
-#endif
-
-  DateADT result_date = input_date + calendar_interval;
-  HTAB *ht = imcx_ptr->pg_calendar_name_hashtable;
-
-  bool entry_found = false;
-  const CalendarNameEntry *entry = hash_search(
-      ht,
-      calendar_name, HASH_FIND,
-      &entry_found);
-  if (entry_found) {
-#ifndef NDEBUG
-    ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Found Entry Name: %s", entry->key));
-#endif
-    const Calendar *calendar = imcx_ptr->calendars[entry->calendar_id];
-    result_date = input_date + calendar->id;
-  }
-  LWLockRelease(shared_memory_ptr->lock);
-#ifndef NDEBUG
-  ereport (DEF_DEBUG_LOG_LEVEL, errmsg("Shared Read Lock Released."));
-#endif
-
-  PG_RETURN_DATEADT (result_date);
-}
-
 Datum
 add_calendar_days_by_name(PG_FUNCTION_ARGS) {
   ensure_cache_populated();

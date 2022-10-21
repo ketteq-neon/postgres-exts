@@ -91,7 +91,6 @@ int32 pg_set_calendar_name(IMCX *imcx, Calendar *calendar, const char *calendar_
     return RET_ERROR_UNSUPPORTED_OP;
   }
   // Set the key inside the calendar entry (required for key comparison)
-  strcpy(entry->key, calendar_name);
   strcpy(calendar->name, calendar_name);
   entry->calendar_id = calendar->id;
 #ifndef NDEBUG
