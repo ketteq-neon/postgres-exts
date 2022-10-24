@@ -2,5 +2,15 @@ build
 build-debug
 cmake-build
 cmake-build-debug
-.idea
 /googletest/
+/concurrency-test/*_result.txt
+/concurrency-test/venv/
+/concurrency-test/build/
+/concurrency-test/dist/
+/concurrency-test/xsct/__pycache__/
+/concurrency-test/xsct/common/__pycache__/
+/concurrency-test/xsct/imcx/__pycache__/
+*.pyc
+.idea
+.DS_Store
+*.egg-info

@@ -21,41 +21,34 @@ hosts is not supported.
 
 2. Clone this repo.
 3. `cd` to newly cloned repo.
-4. Clone `Google Test` inside it:
-
-    ```bash
-    git clone https://github.com/google/googletest 
-    ```
-5. If not using an IDE (such as CLion from Jetbrains) create `build` folders:
+4. If not using an IDE (such as CLion from Jetbrains) create `build` folders:
 
     ```bash
     mkdir build 
     ```
-6. CD to the newly created build folder and generate Makefiles using `cmake`
+5. CD to the newly created build folder and generate Makefiles using `cmake`:
     
     ```bash
     cd build
     cmake .. 
     ```
-7. Run `make` to create the extension shared object.
+   
+   You can use `cmake -DCMAKE_BUILD_TYPE=Debug` to include debug symbols in the output binary. This will disable all optimizations of the C compiler.
+   <br/><br/>   
+
+6. Run `make` to create the extension shared object.
 
     ```bash
-    make 
+    make -j8
     ```
    
 * Other build helpers such as `ninja` can be used as well.
 
 # Extensions And Features
 
-| Extension Name                       | Create Extension Name | Description                                                          |
-|--------------------------------------|-----------------------|----------------------------------------------------------------------|
-| In-Memory Calendar Extension (IMCX)  | `kq_imcx`             | Loads slices into memory and provides calendar calculation functions |
-
-## In-Memory Calendar Extension (IMCX)
-
-- Uses GHashTable to store slices cache in memory.
-- Uses the PostgreSQL Server's memory.
-- Provides very fast calendar calculation functions.
+| Extension Name                       | Create Extension Name | Features                                                                                                                                 |
+|--------------------------------------|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| In-Memory Calendar Extension (IMCX)  | `kq_imcx`             | - Stores cache dynamically using PostgreSQL Shared Memory.<br/> - Provides very fast calendar calculation functions.<br/> - Thread safe. |
 
 # Installation
 
@@ -114,25 +107,143 @@ Is not recommended to give superuser powers to an account just to enable the ext
 After the extension is enabled the following functions will be available
 from the SQL-query interface:
 
-| Function                                                                   | Description                                                               |
-|----------------------------------------------------------------------------|---------------------------------------------------------------------------|
-| kq_imcx_info()                                                             | Returns information about the extension as records.                       |
-| kq_imcx_invalidate()                                                       | Invalidates the loaded cache.                                             |
-| kq_imcx_report(`showEntries int`,`showPageMap int `,`showSliceNames int`)  | List the cached calendars.                                                |   
-| kq_imcx_add_days(`input date`, `interval int`, `slicetype-id int`)         | Calculate the next or previous date using the calendar ID.                |
-| kq_imcx_add_days_name(`input date`, `interval int`, `slicetype-name text`) | Same as the previous function but uses the calendar NAMEs instead of IDs. |
+| Function                                                                               | Description                                                               |
+|----------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| kq_calendar_cache_info()                                                               | Returns information about the extension as records.                       |
+| kq_invalidate_calendar_cache()                                                         | Invalidates the loaded cache.                                             |
+| kq_calendar_cache_report(`showEntries bool`,`showPageMap bool `,`showSliceNames bool`) | List the cached calendars.                                                |   
+| kq_add_days_by_id(`input date`, `interval int`, `slicetype-id int`)                    | Calculate the next or previous date using the calendar ID.                |
+| kq_add_days(`input date`, `interval int`, `slicetype-name text`)                       | Same as the previous function but uses the calendar NAMEs instead of IDs. |
 
+Any call to the extension functions will automatically load the slices in memory if not
+already loaded or failed in the `CREATE EXTENSION` time.
+
+### Examples
+
+When the extension is successfully loaded and slices are in memory an information
+message is shown in the console: `INFO:  KetteQ In-Memory Calendar Extension Loaded.`.
+
+Show information about the extension status:
+
+```
+SELECT * FROM kq_calendar_cache_info();
+INFO:  KetteQ In-Memory Calendar Extension Loaded.
+              property              | calendar_id 
+------------------------------------+-------
+ Version                            | 0.0.0
+ Cache Available                    | Yes
+ Slice Cache Size (SliceType Count) | 13
+ Entry Cache Size (Slices)          | 16510
+(4 rows)
+```
+
+Show details about the cache:
+
+```
+SELECT * FROM kq_calendar_cache_report(false, false);
+        property        |  calendar_id  
+------------------------+---------
+ Slices-Id Max          | 13
+ Cache-Calendars Size   | 8
+ SliceType-Id           | 1
+    Name                | week
+    Entries             | 1983
+    Page Map Size       | 868
+    Page Size           | 16
+ SliceType-Id           | 2
+    Name                | month
+    Entries             | 456
+    Page Map Size       | 434
+    Page Size           | 32
+ SliceType-Id           | 3
+    Name                | quarter
+    Entries             | 152
+    Page Map Size       | 432
+    Page Size           | 32
+ SliceType-Id           | 4
+    Name                | year
+    Entries             | 38
+    Page Map Size       | 423
+    Page Size           | 32
+ SliceType-Id           | 13
+    Name                | day
+    Entries             | 13881
+    Page Map Size       | 869
+    Page Size           | 16
+ Missing Slices (id==0) | 8
+(28 rows)
+```
+
+Invalidating the cache will clear memory and execute again the load queries. After
+the function is executed, a fresh cache is available.
+
+```
+SELECT kq_invalidate_calendar_cache();
+INFO:  Cache Invalidated Successfully
+ kq_invalidate_calendar_cache 
+------------------------------
+ 
+(1 row)
+```
+
+When extension is ready and slices are loaded in memory, calculation functions can
+be used.
+
+Add an interval to a date that corresponds to the quarter calendar (Slice Type), the
+date must be in a PostgreSQL-supported date format.
+
+```
+SELECT kq_add_days('2008-01-15', 1, 'quarter');
+ kq_add_days 
+-------------
+ 2008-04-01
+(1 row)
+```
+
+The output of this function can be used inside a normal SQL query:
+
+```
+# SELECT 1 id, '2008-01-15' old_date, kq_add_days('2008-01-15', 1, 'quarter') new_date;
+ id |  old_date  |  new_date  
+----+------------+------------
+  1 | 2008-01-15 | 2008-04-01
+(1 row)
+```
+
+# External Tests
+
+## Extensions Concurrency Test (XSCT)
+
+**Important:** Extension must be installed in target server before running the concurrency test.
+
+This application written in python will connect to backend database server and simulate a race condition. The
+test is fully automated and is configurable via command line options.
+
+The result of the test is provided as standard `ERROR_CODE` where `0` means all tests were run successfully. Output
+summary can be collected piping `stdout`.
+
+1. Change directory to `concurrency-test`.
+   ```bash
+   cd concurrency-test
+   ```
+2. Activate **virtualenv**
+   ```bash
+   . venv/bin/activate
+   ```
+3. Install required modules
+   ```bash
+   pip3 install -r requirements.txt
+   ```
+4. Run the `xsct.suite` module from command line
+   ```bash
+   python3 -m xsct.suite
+   ```
+   Read the provided options to test the extension.
+
+This application can be run in any Python supported operating system, if running in Windows, use the correct
+`virtualenv` binaries.
 
 # Architecture
 
 Postgres' extensions are handled by a "bridge" (or main) C file with functions that must be mapped into the 
 "extension mapping" SQL file that will make these C functions available from the SQL query interface.
-
-## Example (In-Memory Calendar Extension)
-
-| File                           | Description                       |
-|--------------------------------|-----------------------------------|
-| src/imcx/pgxs/kq_imcx.c        | Extension C Bridge (Main)         |
-| src/imcx/pgxs/kq_imcx--0.1.sql | PostgreSQL Extension Mapping File |
-| src/imcx/src/                  | Extension C Source Files          |
-

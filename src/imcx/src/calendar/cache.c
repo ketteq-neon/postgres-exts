@@ -2,247 +2,223 @@
  * (C) ketteQ, Inc.
  */
 
-#include "cache.h"
-#include "../common.h"
-#include "inttypes.h"
-#include <stdbool.h>
-#include <stdio.h>
 
-struct InMemCalendar *cacheCalendars; // InMemCalendar store.
-unsigned long cacheCalendarCount; // InMemCalendar store Size.
-bool cacheFilled; // True if cache is filled.
-GHashTable *cacheCalendarNameHashTable; // Contains the calendar names.
-char *cacheCalendarFindCalendarName; // Contains the name of the latest found calendar
+#include "imcx/src/include/cache.h"
+#include "config.h"
 
-/**
- * Support function for deallocating hash map pointers (keys and values).
- * Should not be exported.
- * @param data
- */
-void glib_value_free(gpointer data) {
-    free(data);
+int32 pg_init_hashtable(IMCX *imcx) {
+  HASHCTL info;
+  memset(&info, 0, sizeof(info));
+  info.keysize = CALENDAR_NAME_MAX_LEN;
+  info.entrysize = sizeof(CalendarNameEntry);
+  imcx->pg_calendar_name_hashtable = ShmemInitHash("KQ_IMCX_CAL_NAMES_SMHTAB",
+//                                                    (long)imcx->calendar_count,
+//                                                    (long)imcx->calendar_count * 10,
+                                                   100,
+                                                   1000,
+                                                   &info,
+                                                   HASH_ELEM | HASH_STRINGS);
+  if (imcx->pg_calendar_name_hashtable == NULL) {
+    return RET_ERROR_CANNOT_ALLOCATE;
+  }
+  return RET_SUCCESS;
 }
 
-/**
- * This INIT will allocate the calendar struct in-mem storage.
- * @param min_calendar_id
- * @param max_calendar_id
- * @return
- */
-int cacheInitCalendars(long min_calendar_id, long max_calendar_id) {
-    if (min_calendar_id < 1) return -1;
-    if (max_calendar_id < 1) return -1;
-    //
-    unsigned long calendar_count = max_calendar_id - min_calendar_id + 1;
-    //
-    cacheCalendars = malloc(calendar_count * sizeof(struct InMemCalendar));
-    if (cacheCalendars == NULL) {
-        // This happens when the OS can't give us that much memory.
-        return -1;
+int32 pg_cache_init(IMCX *imcx, int32 min_calendar_id, int32 max_calendar_id) {
+  if (min_calendar_id > max_calendar_id) {
+    return RET_ERROR_MIN_GT_MAX;
+  }
+  int32 calendar_count = max_calendar_id - min_calendar_id + 1;
+  // Allocate Calendars
+  imcx->calendars = (Calendar **)ShmemAlloc(calendar_count * sizeof(Calendar *));
+  if (imcx->calendars == NULL) {
+    return RET_ERROR_CANNOT_ALLOCATE;
+  }
+  // Allocate & Init each Calendar
+  memset(imcx->calendars, 0, calendar_count * sizeof(Calendar *));
+  for (int32 calendar_idx = 0; calendar_idx < calendar_count; calendar_idx++) {
+    imcx->calendars[calendar_idx] = (Calendar *)ShmemAlloc(sizeof(Calendar));
+    if (imcx->calendars[calendar_idx] == NULL) {
+      return RET_ERROR_CANNOT_ALLOCATE;
     }
-    //
-    cacheCalendarCount = calendar_count;
-    // Allocate the HashMap that will store the calendar names (str). This is a dynamic map.
-    cacheCalendarNameHashTable = g_hash_table_new_full
-            (g_str_hash,
-             g_str_equal,
-             glib_value_free,
-             glib_value_free);
-    //
-    return 0;
+    memset(imcx->calendars[calendar_idx], 0, sizeof(Calendar));
+  }
+  // Init control Vars
+  imcx->calendar_count = calendar_count;
+  imcx->entry_count = 0;
+  imcx->min_calendar_id = min_calendar_id;
+
+  return RET_SUCCESS;
 }
 
-int cacheInitCalendarEntries(InMemCalendar *calendar, long calendar_entry_count) {
-    calendar->dates = malloc(calendar_entry_count * sizeof(int));
-    if (calendar->dates == NULL) {
-        // elog(ERROR, "Cannot allocate memory for date entries.");
-        return -1;
-    }
-    calendar->dates_size = calendar_entry_count;
-    // elog(INFO, "%" PRIu64 " entries memory allocated for InMemCalendar-Id: %d", calendar_entry_count, calendar->calendar_id);
-    return 0;
+Calendar *pg_get_calendar(const IMCX *imcx, int32 calendar_id) {
+#ifndef NDEBUG
+  ereport(DEBUG2, errmsg("CalendarId=%d, MinCalendarId=%d", calendar_id, imcx->min_calendar_id));
+#endif
+  return imcx->calendars[get_calendar_index(imcx, calendar_id)];
 }
 
-static void stdc_display_hash(gpointer key, gpointer value, gpointer user_data) {
-    // elog(INFO, "Key: %s, Value: %s", (char*) key, (char*) value);
-    printf("Key: %s, Value: %s", (char*) key, (char*) value);
+int32 get_calendar_index(const IMCX *imcx, int32 calendar_id) {
+  return calendar_id - imcx->min_calendar_id;
 }
 
-void calcache_report_calendar_names_stdc() {
-    g_hash_table_foreach(cacheCalendarNameHashTable, stdc_display_hash, NULL);
+int32 pg_calendar_init(Calendar *calendar, int32 calendar_id, int32 entry_size, int32 *entry_count_ptr) {
+  Size alloc_size = entry_size * sizeof(int32);
+  calendar->dates = (int32 *)ShmemAlloc(alloc_size);
+  if (calendar->dates == NULL) {
+    return RET_ERROR_CANNOT_ALLOCATE;
+  }
+  memset(calendar->dates, 0, alloc_size);
+  calendar->id = calendar_id;
+  calendar->dates_size = entry_size;
+  *entry_count_ptr = *entry_count_ptr + entry_size;
+  return RET_SUCCESS;
 }
 
-
-void calcache_report_calendar_names(GHFunc display_func) {
-    g_hash_table_foreach(cacheCalendarNameHashTable, display_func, NULL);
+int32 pg_set_calendar_name(IMCX *imcx, Calendar *calendar, const char *calendar_name_input) {
+  char calendar_name[CALENDAR_NAME_MAX_LEN] = {0};
+  strcpy(calendar_name, calendar_name_input);
+  // Create Entry
+  bool entry_found = false;
+  CalendarNameEntry *entry = hash_search(
+      imcx->pg_calendar_name_hashtable,
+      calendar_name,
+      HASH_ENTER,
+      &entry_found
+  );
+  if (entry_found) {
+    // Fail if already exists.
+    return RET_ERROR_UNSUPPORTED_OP;
+  }
+  // Set the key inside the calendar entry (required for key comparison)
+  strcpy(calendar->name, calendar_name);
+  entry->calendar_id = calendar->id;
+#ifndef NDEBUG
+  ereport(DEBUG2, errmsg("Calendar name for calendar id = '%d' set to '%s'", calendar->id, entry->key));
+#endif
+  return RET_SUCCESS;
 }
 
-void cacheInitAddCalendarName(InMemCalendar calendar, char *calendar_name) {
-    // Convert Int to Str
-    int num_len = snprintf(NULL, 0, "%d", calendar.calendar_id);
-    char * id_str = malloc((num_len + 1) * sizeof(char));
-    snprintf(id_str, num_len+1, "%d", calendar.calendar_id);
-    //
-    // TODO: Check how to save the id value as Int and not Str (char*) -> similar to IntHashMap
-    coutil_str_to_lowercase(calendar_name);
-    char * calendar_name_ll = strdup(calendar_name);
-    g_hash_table_insert(cacheCalendarNameHashTable, calendar_name_ll, id_str);
+int32 pg_get_calendar_id_by_name(IMCX *imcx, const char *calendar_name, int32 *calendar_id) {
+  bool entry_found = false;
+  const CalendarNameEntry *entry = hash_search(
+      imcx->pg_calendar_name_hashtable,
+      calendar_name, HASH_FIND,
+      &entry_found);
+  if (entry_found) {
+    // Set the output var to the result
+    *calendar_id = entry->calendar_id;
+    return RET_SUCCESS;
+  }
+  return RET_ERROR_NOT_FOUND;
 }
 
-void findCalendarName(gpointer _key, gpointer _value, gpointer _user_data) {
-    const char* key = _key;
-    const char* compare = _user_data;
-    if (strcmp(key, compare) == 0) {
-//        cacheCalendarFindCalendarName = malloc(strlen(key));
-//        strcpy(cacheCalendarFindCalendarName, key);
-        cacheCalendarFindCalendarName = strdup(key);
+int32 pg_init_page_size(Calendar *calendar) {
+  int32 last_date = calendar->dates[calendar->dates_size - 1];
+  int32 first_date = calendar->dates[0];
+  int32 entry_count = calendar->dates_size;
+  // Calculate Page Size
+  int32 page_size_tmp = calculate_page_size(first_date, last_date, entry_count);
+  //
+  if (page_size_tmp == 0) {
+    // Page size cannot be 0, cannot be calculated.
+    return RET_ERROR_UNSUPPORTED_OP;
+  }
+  // Set Vars
+  calendar->page_size = page_size_tmp;
+  calendar->first_page_offset = first_date / page_size_tmp;
+  // Allocation of the page map
+  int32 page_end_index = calendar->dates[calendar->dates_size - 1] / calendar->page_size;
+  calendar->page_map_size = page_end_index - calendar->first_page_offset + 1;
+  // Assign memory and set the values to 0.
+  calendar->page_map = ShmemAlloc(calendar->page_map_size * sizeof(int32));
+  memset(calendar->page_map, 0, calendar->page_map_size * sizeof(int32));
+  // Calculate Page Map
+  int32 prev_page_index = 0;
+  // int prev_date = -1; // This will be required if we need to check if that the array is ordered.
+  for (int32 date_index = 0; date_index < calendar->dates_size; date_index++) {
+    int32 curr_date = calendar->dates[date_index];
+    int32 page_index = (curr_date / calendar->page_size) - calendar->first_page_offset;
+    while (prev_page_index < page_index) {
+      // Fill Page Map
+      calendar->page_map[++prev_page_index] = date_index;
     }
+  }
+  return RET_SUCCESS;
 }
 
-// TODO: Requires Fixing, Is Always returning NULL
-int cacheGetCalendarName(InMemCalendar calendar, char *calendar_name) {
-    // Convert Int to Str
-    int num_len = snprintf(NULL, 0, "%d", calendar.calendar_id); // Gets the size of chars rq. to rep. the number
-    char * id_str = malloc((num_len + 1) * sizeof(char));
-    snprintf(id_str, num_len+1, "%d", calendar.calendar_id); // Do the actual conversion
-    // Find the Name
-    g_hash_table_foreach(cacheCalendarNameHashTable, findCalendarName, id_str);
-    // Copy to Output Arg
-    calendar_name = malloc(strlen(cacheCalendarFindCalendarName));
-    strcpy(calendar_name, cacheCalendarFindCalendarName);
-    //
-    if (strlen(calendar_name) > 0) {
-        return 0;
-    } else {
-        return -1;
+int32 add_calendar_days(
+    const IMCX *imcx,
+    const Calendar *calendar,
+    int32 input_date,
+    int32 interval,
+    int32 *result_date,
+    int32 *first_date_idx,
+    int32 *result_date_idx
+) {
+  if (!imcx->cache_filled) {
+    return RET_ERROR_NOT_READY;
+  }
+  // Find the interval -> the closest date index from the left of the input_date in the calendar
+  int32 prev_date_index = get_closest_index_from_left(input_date, *calendar);
+  // Now try to get the corresponding date of requested interval
+  int32 result_date_index = prev_date_index + interval;
+  // This can be useful for reporting or debugging.
+  if (prev_date_index > 0 && first_date_idx != NULL) {
+    *first_date_idx = prev_date_index;
+  }
+  if (result_date_index > 0 && result_date_idx != NULL) {
+    *result_date_idx = result_date_index;
+  }
+  // Now check if inside boundaries.
+  if (result_date_index >= 0) // If result_date_index is positive (negative interval is smaller than current index)
+  {
+    if (prev_date_index < 0) // Handle Negative OOB Indices (When interval is negative)
+    {
+      *result_date = calendar->dates[0]; // Returns first date of the calendar
+      return RET_ADD_DAYS_NEGATIVE;
     }
+    if (result_date_index >= calendar->dates_size) // Handle Positive OOB Indices (When interval is positive)
+    {
+      *result_date = PG_INT32_MAX; // Returns infinity+.
+      return RET_ADD_DAYS_POSITIVE;
+    }
+    *result_date = calendar->dates[result_date_index];
+    return RET_SUCCESS;
+  } else {
+    // Handle Negative OOB Indices (When interval is negative)
+    *result_date = calendar->dates[0]; // Returns the first date of the calendar.
+    return RET_SUCCESS;
+  }
 }
 
-int cacheGetCalendarByName(char* calendar_name, InMemCalendar * calendar) {
-    coutil_str_to_lowercase(calendar_name);
-    _Bool found = g_hash_table_contains(cacheCalendarNameHashTable, calendar_name);
-    if (found) {
-        char * calendar_id_str = g_hash_table_lookup(cacheCalendarNameHashTable, calendar_name);
-        long calendar_id_l = strtol(calendar_id_str, NULL, 10);
-        if (calendar_id_l > INT32_MAX) {
-            // out of bounds.
-            return -1;
-        }
-        * calendar = cacheCalendars[calendar_id_l - 1];
-        return 0;
-    }
-    return -1;
-}
-
-/**
- * This INIT will calculate and set the page size for the given calendar pointer.
- * @param calendar
- * @return
- */
-int cacheInitPageSize(InMemCalendar *calendar) {
-    int last_date = calendar->dates[calendar->dates_size - 1];
-    int first_date = calendar->dates[0];
-    int entry_count = calendar->dates_size;
-    //
-    int page_size_tmp = calmath_calculate_page_size(first_date, last_date, entry_count);
-    //
-    if (page_size_tmp == 0) {
-        // Page size cannot be 0, cannot be calculated.
-        return -1;
-    }
-    //
-    calendar->page_size = page_size_tmp;
-    calendar->first_page_offset = first_date / page_size_tmp;
-    // Allocation of the page map
-    int page_end_index = calendar->dates[calendar->dates_size - 1] / calendar->page_size;
-    calendar->page_map_size = page_end_index - calendar->first_page_offset + 1;
-    // Assign memory and set the values to 0.
-    calendar->page_map = calloc(calendar->page_map_size, sizeof(int));
-    //
-    // Calculate Page Map
-    int prev_page_index = 0;
-    // int prev_date = -1; // This will be required if we check that the array is ordered.
-    for (int date_index = 0; date_index < calendar->dates_size; date_index++) {
-        int curr_date = calendar->dates[date_index];
-        // TODO: Check if the date array is ordered or not, we assume it is.
-        int page_index = (curr_date / calendar->page_size) - calendar->first_page_offset;
-        while (prev_page_index < page_index) {
-            calendar->page_map[++prev_page_index] = date_index;
-        }
-    }
-    return 0;
-}
-
-/**
- * Adds (or subtracts) intervals of the first entry where the given date is located.
- * @param input_date
- * @param interval
- * @param calendar
- * @param first_date_idx
- * @param result_date_idx
- * @return
- */
-int cacheAddCalendarDays(
-        int input_date,
-        int interval,
-        InMemCalendar calendar,
-        // Optional, set to NULL if it will not be used.
-        int * first_date_idx,
-        int * result_date_idx
-        ) {
-    // Find the interval
-    int first_date_index = calmath_get_closest_index_from_left(input_date, calendar);
-    // Now try to get the corresponding date of requested interval
-    int result_date_index = first_date_index + interval;
-    //
-    // Now check if inside boundaries.
-    if (result_date_index >= 0) {
-        if (first_date_index < 0) {
-            return calendar.dates[0]; // Returns the first date of the calendar.
-        }
-        if (result_date_index >= calendar.dates_size) {
-            return INT32_MAX; // Returns infinity+.
-        }
-    } else {
-        if (result_date_index < 0) {
-            return calendar.dates[0]; // Returns the first date of the calendar.
-        }
-        if (first_date_index >= calendar.dates_size) {
-            return INT32_MAX; // Returns infinity+.
-        }
-    }
-    // This can be useful for reporting or debugging.
-    if (first_date_idx != NULL) {
-        * first_date_idx = first_date_index;
-    }
-    if (result_date_idx != NULL) {
-        * result_date_idx = result_date_index;
-    }
-    //
-    return calendar.dates[result_date_index];
-}
-
-/**
- * Clears the Cache
- * @return -1 if error, 0 if OK.
- */
-int cacheInvalidate() {
-    int cc;
-    //
-    if (cacheCalendarCount == 0) {
-        return -1;
-    }
-    // Free Entries 1st
-    for (cc = 0; cc < cacheCalendarCount; cc++) {
-        free(cacheCalendars[cc].dates);
-    }
-    // Then Free Store
-    free(cacheCalendars);
-    // Then Destroy Hashmap
-    g_hash_table_destroy(cacheCalendarNameHashTable);
-    // Reset Control Vars
-    cacheCalendarCount = 0;
-    cacheFilled = false;
-    // Done
-    return 0;
+int32 cache_invalidate(IMCX *imcx) {
+  if (!imcx->cache_filled) {
+    return RET_ERROR_UNSUPPORTED_OP;
+  }
+  if (imcx->calendar_count == 0) {
+    return RET_ERROR;
+  }
+  // Free Name HashTable
+  HASH_SEQ_STATUS status;
+  const void *entry = NULL;
+  hash_seq_init(&status, imcx->pg_calendar_name_hashtable);
+  while ((entry = hash_seq_search(&status)) != 0) {
+    bool found = false;
+    hash_search(imcx->pg_calendar_name_hashtable, entry, HASH_REMOVE, &found);
+    Assert(found);
+  }
+  // Reset Entries
+  for (int32 cc = 0; cc < imcx->calendar_count; cc++) {
+    imcx->calendars[cc]->dates = NULL;
+    imcx->calendars[cc]->page_map = NULL;
+    imcx->calendars[cc] = NULL;
+  }
+  // Reset Control Vars
+  imcx->calendars = NULL;
+  imcx->calendar_count = 0;
+  imcx->entry_count = 0;
+  imcx->cache_filled = false;
+  // Done
+  return RET_SUCCESS;
 }
