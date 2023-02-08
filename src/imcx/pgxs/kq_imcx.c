@@ -42,7 +42,7 @@ char *q3_get_cal_entries = DEF_Q3_GET_ENTRIES;
 
 void init_gucs() {
   DefineCustomStringVariable("kq.calendar.q1_get_calendar_min_max_id",
-                             "Query to select the MIN and MAX slices types IDs.",
+                             "Query to select the MIN and MAX calendar types IDs.",
                              NULL,
                              &q1_get_cal_min_max_id,
                              DEF_Q1_GET_CALENDAR_IDS,
@@ -53,7 +53,7 @@ void init_gucs() {
                              NULL);
 
   DefineCustomStringVariable("kq.calendar.q2_get_calendars_entry_count",
-                             "Query to select the entry count for each slice types.",
+                             "Query to select the entry count for each calendar types.",
                              NULL,
                              &q2_get_cal_entry_count,
                              DEF_Q2_GET_CAL_ENTRY_COUNT,
@@ -113,7 +113,7 @@ static void init_shared_memory() {
 void ensure_cache_populated() {
   if (imcx_ptr->cache_filled) {
 #ifndef NDEBUG
-    ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Cache already filled. Skipping slice loading."));
+    ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Cache already filled. Skipping calendar loading."));
 #endif
     return; // Do nothing if the cache is already filled
   }
@@ -127,7 +127,7 @@ void ensure_cache_populated() {
   if (imcx_ptr->cache_filled) {
     LWLockRelease(shared_memory_ptr->lock);
 #ifndef NDEBUG
-    ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Cache already filled. Skipping slice loading. Lock Released."));
+    ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Cache already filled. Skipping calendar loading. Lock Released."));
 #endif
     return; // Do nothing if the cache is already filled
   }
@@ -179,7 +179,7 @@ void ensure_cache_populated() {
     ereport(ERROR, errmsg("Cannot count calendar's entries."));
   }
 #ifndef NDEBUG
-  ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Q2: Got %" PRIu64 " SliceTypes.", SPI_processed));
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Q2: Got %" PRIu64 " CalendarTypes.", SPI_processed));
 #endif
   for (uint64 row_counter = 0; row_counter < SPI_processed; row_counter++) {
     HeapTuple cal_entries_count_tuple = SPI_tuptable->vals[row_counter];
@@ -206,7 +206,7 @@ void ensure_cache_populated() {
 #ifndef NDEBUG
     ereport(DEF_DEBUG_LOG_LEVEL,
             errmsg(
-                "Q2 (Cursor): Got: SliceTypeName: %s, SliceType: %d, Entries: %d",
+                "Q2 (Cursor): Got: CalendarTypeName: %s, CalendarType: %d, Entries: %d",
                 calendar_name,
                 calendar_id,
                 calendar_entry_count
@@ -292,7 +292,7 @@ void ensure_cache_populated() {
     }
   }
 #ifndef NDEBUG
-  ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Q3: Cached %" PRIu64 " slices in total.", SPI_processed));
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Q3: Cached %" PRIu64 " calendar entries in total.", SPI_processed));
 #endif
   SPI_finish();
   imcx_ptr->cache_filled = true;
@@ -300,7 +300,7 @@ void ensure_cache_populated() {
 #ifndef NDEBUG
   ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Exclusive Write Lock Released."));
 #endif
-  ereport(INFO, errmsg("Slices Loaded Into Cache."));
+  ereport(INFO, errmsg("Calendar Entries Loaded Into Cache."));
 }
 
 void add_row_to_2_col_tuple(
@@ -383,10 +383,10 @@ Datum calendar_info(PG_FUNCTION_ARGS) {
 #endif
   add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
                          "Cache Available", imcx_ptr->cache_filled ? "Yes" : "No");
-  char slice_cache_size_str[32];
-  int32_to_str(slice_cache_size_str, imcx_ptr->calendar_count);
+  char calendar_cache_size_str[32];
+  int32_to_str(calendar_cache_size_str, imcx_ptr->calendar_count);
   add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
-                         "Slice Cache Size (Calendar ID Count)", slice_cache_size_str);
+                         "Calendar Cache Size (Calendar ID Count)", calendar_cache_size_str);
 
   char entry_cache_size_str[32];
   int32_to_str(entry_cache_size_str, imcx_ptr->entry_count);
@@ -491,10 +491,10 @@ int32 calendar_report_concrete(int32 showEntries, int32 showPageMapEntries, Func
 
   p_metadata = TupleDescGetAttInMetadata(tuple_desc);
   // --
-  char slices_id_max_str[4];
-  int32_to_str(slices_id_max_str, imcx_ptr->calendar_count);
+  char calendar_id_max_str[4];
+  int32_to_str(calendar_id_max_str, imcx_ptr->calendar_count);
   add_row_to_2_col_tuple(p_metadata, tuplestorestate,
-                         "Slices-Id Max", slices_id_max_str);
+                         "Calendars-Id Max", calendar_id_max_str);
   char cache_calendars_size_str[4];
   int32_to_str(cache_calendars_size_str, imcx_ptr->entry_count);
   add_row_to_2_col_tuple(p_metadata, tuplestorestate,
@@ -513,20 +513,20 @@ int32 calendar_report_concrete(int32 showEntries, int32 showPageMapEntries, Func
       no_calendar_id_counter++;
       continue;
     }
-    char slice_id_str[4];
-    int32_to_str(slice_id_str, curr_calendar->id);
+    char calendar_id_str[4];
+    int32_to_str(calendar_id_str, curr_calendar->id);
     add_row_to_2_col_tuple(p_metadata, tuplestorestate,
-                           "SliceType-Id", slice_id_str);
+                           "Calendar-Id", calendar_id_str);
     char slic_idx_str[4];
     int32_to_str(slic_idx_str, i);
     add_row_to_2_col_tuple(p_metadata, tuplestorestate,
                            "   Index", slic_idx_str);
     add_row_to_2_col_tuple(p_metadata, tuplestorestate,
                            "   Name", curr_calendar->name);
-    char slice_dates_entries_str[8];
-    int32_to_str(slice_dates_entries_str, curr_calendar->dates_size);
+    char calendar_dates_entries_str[8];
+    int32_to_str(calendar_dates_entries_str, curr_calendar->dates_size);
     add_row_to_2_col_tuple(p_metadata, tuplestorestate,
-                           "   Entries", slice_dates_entries_str);
+                           "   Entries", calendar_dates_entries_str);
     char page_map_size_str[8];
     int32_to_str(page_map_size_str, curr_calendar->page_map_size);
     add_row_to_2_col_tuple(p_metadata, tuplestorestate,
@@ -560,11 +560,11 @@ int32 calendar_report_concrete(int32 showEntries, int32 showPageMapEntries, Func
       }
     }
   }
-  char missing_slices_str[4];
-  int32_to_str(missing_slices_str, no_calendar_id_counter);
+  char missing_calendars_str[4];
+  int32_to_str(missing_calendars_str, no_calendar_id_counter);
   add_row_to_2_col_tuple(p_metadata, tuplestorestate,
-                         "Missing Slices (id==0)",
-                         missing_slices_str);
+                         "Missing Calendars (id==0)",
+                         missing_calendars_str);
   LWLockRelease(shared_memory_ptr->lock);
 #ifndef NDEBUG
   ereport (DEF_DEBUG_LOG_LEVEL, errmsg("Shared Read Lock Released."));
