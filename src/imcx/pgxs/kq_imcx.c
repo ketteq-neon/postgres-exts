@@ -376,22 +376,22 @@ Datum calendar_info(PG_FUNCTION_ARGS) {
                          "Version", CMAKE_VERSION);
 #ifndef NDEBUG
   add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
-                         "Release Build", "False");
+                         "Release Build", "No");
 #else
   add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
-                         "Release Build", "True");
+                         "Release Build", "Yes");
 #endif
   add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
                          "Cache Available", imcx_ptr->cache_filled ? "Yes" : "No");
   char slice_cache_size_str[32];
   int32_to_str(slice_cache_size_str, imcx_ptr->calendar_count);
   add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
-                         "Slice Cache Size (SliceType Count)", slice_cache_size_str);
+                         "Slice Cache Size (Calendar ID Count)", slice_cache_size_str);
 
   char entry_cache_size_str[32];
   int32_to_str(entry_cache_size_str, imcx_ptr->entry_count);
   add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
-                         "Entry Cache Size (Slices)", entry_cache_size_str);
+                         "Entry Cache Size", entry_cache_size_str);
 
   char shared_memory_requested_str[32];
   double_to_str(shared_memory_requested_str, SHMEM_REQUESTED_MEMORY / 1024.0 / 1024.0, 2);
