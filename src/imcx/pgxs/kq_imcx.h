@@ -9,7 +9,7 @@
 #define SHMEM_REQUESTED_MEMORY (1024 * 1024 * 1024 * 1) // 1 GB
 
 // Default Loading Queries
-#define DEF_Q1_GET_CALENDAR_IDS "select min(c.id), max(c.id) from plan.calendar c" // Loads calendar slice types.
+#define DEF_Q1_GET_CALENDAR_IDS "select min(c.id), max(c.id) from plan.calendar c"
 #define DEF_Q2_GET_CAL_ENTRY_COUNT "select cd.calendar_id, count(*), (select LOWER(ct.\"name\") from plan.calendar ct where ct.id = cd.calendar_id) \"name\" from plan.calendar_date cd group by cd.calendar_id order by cd.calendar_id asc;"
 #define DEF_Q3_GET_ENTRIES "select cd.calendar_id, cd.\"date\" from plan.calendar_date cd order by cd.calendar_id asc, cd.\"date\" asc;"
 
