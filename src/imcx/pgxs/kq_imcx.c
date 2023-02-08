@@ -42,7 +42,7 @@ char *q3_get_cal_entries = DEF_Q3_GET_ENTRIES;
 
 void init_gucs() {
   DefineCustomStringVariable("kq.calendar.q1_get_calendar_min_max_id",
-                             "Query to select the MIN and MAX calendar types IDs.",
+                             "Query to select the MIN and MAX calendars.",
                              NULL,
                              &q1_get_cal_min_max_id,
                              DEF_Q1_GET_CALENDAR_IDS,
@@ -53,7 +53,7 @@ void init_gucs() {
                              NULL);
 
   DefineCustomStringVariable("kq.calendar.q2_get_calendars_entry_count",
-                             "Query to select the entry count for each calendar types.",
+                             "Query to select the entry count for each calendar.",
                              NULL,
                              &q2_get_cal_entry_count,
                              DEF_Q2_GET_CAL_ENTRY_COUNT,
@@ -179,7 +179,7 @@ void ensure_cache_populated() {
     ereport(ERROR, errmsg("Cannot count calendar's entries."));
   }
 #ifndef NDEBUG
-  ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Q2: Got %" PRIu64 " CalendarTypes.", SPI_processed));
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Q2: Got %" PRIu64 " Calendars.", SPI_processed));
 #endif
   for (uint64 row_counter = 0; row_counter < SPI_processed; row_counter++) {
     HeapTuple cal_entries_count_tuple = SPI_tuptable->vals[row_counter];
@@ -206,7 +206,7 @@ void ensure_cache_populated() {
 #ifndef NDEBUG
     ereport(DEF_DEBUG_LOG_LEVEL,
             errmsg(
-                "Q2 (Cursor): Got: CalendarTypeName: %s, CalendarType: %d, Entries: %d",
+                "Q2 (Cursor): Got: CalendarName: %s, Calendar: %d, Entries: %d",
                 calendar_name,
                 calendar_id,
                 calendar_entry_count
