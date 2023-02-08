@@ -14,34 +14,26 @@ supported but can be implemented if required.
 ## Ubuntu/Debian Linux
 
 1. Install PostgreSQL Repository:
-
    ```bash
    sudo apt install curl ca-certificates gnupg
    curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg >/dev/null
    sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
    sudo apt update
    ```
-
 2. Install development dependencies:
-
-    ```bash
+   ```bash
     sudo apt install build-essential pkg-config libpq-dev libpam-dev libxslt-dev liblz4-dev libreadline-dev libkrb5-dev cmake
     ```
-
 3. Pick one of the target versions for your extension. Extensions are linked to the server version, they are not
    interchangeable as the features between them are not compatible and are enabled statically at build time.
-
-   Postgres 14:
-
-   ```bash
-    sudo apt install postgresql-server-dev-14 postgresql-client-14
-    ```
-
-   Postgres 15:
-
-   ```bash
-    sudo apt install postgresql-server-dev-15 postgresql-client-15
-    ```
+    - Postgres 14
+      ```bash
+      sudo apt install postgresql-server-dev-14 postgresql-client-14
+      ```
+    - Postgres 15:
+      ```bash
+      sudo apt install postgresql-server-dev-15 postgresql-client-15
+      ```
 
    **IMPORTANT** - CMake will always pick the latest Postgres libraries when building.
 
