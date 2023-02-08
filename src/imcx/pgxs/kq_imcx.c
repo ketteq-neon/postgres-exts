@@ -399,6 +399,18 @@ Datum calendar_info(PG_FUNCTION_ARGS) {
                          "Shared Memory Requested (MBytes)",
                          shared_memory_requested_str);
 
+  add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
+                         "[Q1] Get Calendar IDs",
+                         q1_get_cal_min_max_id);
+
+  add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
+                         "[Q2] Get Calendar Entry Count per Calendar ID",
+                         q2_get_cal_entry_count);
+
+  add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
+                         "[Q3] Get Calendar Entries",
+                         q3_get_cal_entries);
+
   LWLockRelease(shared_memory_ptr->lock);
 #ifndef NDEBUG
   ereport (DEF_DEBUG_LOG_LEVEL, errmsg("Shared Read Lock Released."));
