@@ -10,7 +10,7 @@ include_directories(${PROJECT_BINARY_DIR})
 # PGXS Extension Info
 set(ExtensionLib kq_imcx)
 set(Version 0.1)
-set(Description "KetteQ In-Memory Calendar Extension (IMCX)")
+set(Description "ketteQ In-Memory Calendar Extension (IMCX)")
 # Common Sources
 set(CommonSrc src/common/util.c src/calendar/cache.c src/calendar/math.c)
 # Define the meta for the PGXS plugin.

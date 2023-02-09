@@ -4,7 +4,7 @@
 - Includes PGXS CMake build environment.
 - New extensions can be added easily.
 
-*(C) 2023 KetteQ*
+*(C) 2023 ketteQ*
 
 # Build Requirements
 
@@ -140,7 +140,7 @@ already loaded or failed in the `CREATE EXTENSION` time.
 ### Examples
 
 When the extension is successfully loaded and slices are in memory an information
-message is shown in the console: `INFO:  KetteQ In-Memory Calendar Extension Loaded.`.
+message is shown in the console: `INFO:  ketteQ In-Memory Calendar Extension Loaded.`.
 
 Show information about the extension status:
 

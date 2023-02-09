@@ -1,5 +1,5 @@
 /**
- * (C) KetteQ, Inc.
+ * (C) ketteQ, Inc.
  */
 
 #ifndef KETTEQ_INMEMORYCALENDAR_EXTENSION_KQ_IMCX_H

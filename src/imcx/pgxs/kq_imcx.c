@@ -1,5 +1,5 @@
 /**
- * (C) KetteQ, Inc.
+ * (C) ketteQ, Inc.
  */
 
 #include "kq_imcx.h"
@@ -23,7 +23,7 @@ static void imcx_shmem_request(void) {
 
 void _PG_init(void) {
 #ifndef NDEBUG
-  ereport (DEBUG1, errmsg("Initializing KetteQ In-Memory Calendar Extension"));
+  ereport (DEBUG1, errmsg("Initializing ketteQ In-Memory Calendar Extension"));
 #endif
   if (!process_shared_preload_libraries_in_progress) {
     ereport(ERROR, (errmsg("kq_imcx can only be loaded via shared_preload_libraries"),
@@ -42,11 +42,11 @@ void _PG_init(void) {
 #endif
   prev_shmem_startup_hook = shmem_startup_hook;
   shmem_startup_hook = &init_shared_memory;
-  ereport (INFO, errmsg("KetteQ In-Memory Calendar Extension Loaded (kq_imcx)"));
+  ereport (INFO, errmsg("ketteQ In-Memory Calendar Extension Loaded (kq_imcx)"));
 }
 
 void _PG_fini(void) {
-  ereport (INFO, errmsg("Unloaded KetteQ In-Memory Calendar Extension."));
+  ereport (INFO, errmsg("Unloaded ketteQ In-Memory Calendar Extension."));
 }
 
 typedef struct {
