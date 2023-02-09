@@ -178,7 +178,7 @@ void validate_compatible_db() {
                     &entry_is_null));
   SPI_finish();
   if (!valid) {
-    ereport(ERROR, errmsg("This database is not compatible with this extension."));
+    ereport(ERROR, errmsg("The current database is not compatible with the ketteQ In-Memory Calendar Extension."));
   }
 }
 
@@ -192,6 +192,9 @@ void ensure_cache_populated() {
 #endif
     return; // Do nothing if the cache is already filled
   }
+  // Validate before trying to load the cache
+  validate_compatible_db();
+  // Lock memory
   LWLockAcquire(shared_memory_ptr->lock, LW_EXCLUSIVE);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
     ereport(ERROR, errmsg("Cannot acquire AddinShmemInitLock"));
@@ -407,7 +410,6 @@ void add_row_to_1_col_tuple(
 PG_FUNCTION_INFO_V1(calendar_info);
 
 Datum calendar_info(PG_FUNCTION_ARGS) {
-  validate_compatible_db();
   ensure_cache_populated();
   LWLockAcquire(shared_memory_ptr->lock, LW_SHARED);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
@@ -509,7 +511,6 @@ Datum calendar_invalidate(PG_FUNCTION_ARGS) {
     ereport (INFO, errmsg("Cache cannot be invalidated, is not yet loaded."));
     PG_RETURN_VOID ();
   }
-  validate_compatible_db();
   LWLockAcquire(shared_memory_ptr->lock, LW_EXCLUSIVE);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
     ereport (ERROR, errmsg("Cannot Acquire Exclusive Write Lock."));
@@ -661,7 +662,6 @@ int32 calendar_report_concrete(int32 showEntries, int32 showPageMapEntries, Func
 PG_FUNCTION_INFO_V1(calendar_report);
 
 Datum calendar_report(PG_FUNCTION_ARGS) {
-  validate_compatible_db();
   ensure_cache_populated();
   int32 showEntries = PG_GETARG_INT32 (0);
   int32 showPageMapEntries = PG_GETARG_INT32 (1);
@@ -673,7 +673,6 @@ PG_FUNCTION_INFO_V1(add_calendar_days_by_id);
 
 Datum
 add_calendar_days_by_id(PG_FUNCTION_ARGS) {
-  validate_compatible_db();
   ensure_cache_populated();
   LWLockAcquire(shared_memory_ptr->lock, LW_SHARED);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
@@ -727,7 +726,6 @@ void popuplate_hash() {
 PG_FUNCTION_INFO_V1(add_calendar_days_by_name);
 Datum
 add_calendar_days_by_name(PG_FUNCTION_ARGS) {
-  validate_compatible_db();
   ensure_cache_populated();
   LWLockAcquire(shared_memory_ptr->lock, LW_SHARED);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
