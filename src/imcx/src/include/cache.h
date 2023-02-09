@@ -1,5 +1,5 @@
 /**
- * (C) KetteQ, Inc.
+ * (C) ketteQ, Inc.
  */
 
 #ifndef KETTEQ_POSTGRESQL_EXTENSIONS_CACHE_H

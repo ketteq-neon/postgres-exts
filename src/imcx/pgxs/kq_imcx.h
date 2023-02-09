@@ -1,5 +1,5 @@
 /**
- * (C) KetteQ, Inc.
+ * (C) ketteQ, Inc.
  */
 
 #ifndef KETTEQ_INMEMORYCALENDAR_EXTENSION_KQ_IMCX_H
@@ -9,9 +9,9 @@
 #define SHMEM_REQUESTED_MEMORY (1024 * 1024 * 1024 * 1) // 1 GB
 
 // Default Loading Queries
-#define DEF_Q1_GET_CALENDAR_IDS "select min(s.id), max(s.id) from ketteq.slice_type s"
-#define DEF_Q2_GET_CAL_ENTRY_COUNT "select s.slice_type_id, count(*), (select LOWER(st.\"name\") from ketteq.slice_type st where st.id = s.slice_type_id) \"name\" from ketteq.slice s group by s.slice_type_id order by s.slice_type_id asc;"
-#define DEF_Q3_GET_ENTRIES "select s.slice_type_id, s.start_on from ketteq.slice s order by s.slice_type_id asc, s.start_on asc;"
+#define DEF_Q1_GET_CALENDAR_IDS "select min(c.id), max(c.id) from plan.calendar c"
+#define DEF_Q2_GET_CAL_ENTRY_COUNT "select cd.calendar_id, count(*), (select LOWER(ct.\"name\") from plan.calendar ct where ct.id = cd.calendar_id) \"name\" from plan.calendar_date cd group by cd.calendar_id order by cd.calendar_id asc;"
+#define DEF_Q3_GET_ENTRIES "select cd.calendar_id, cd.\"date\" from plan.calendar_date cd order by cd.calendar_id asc, cd.\"date\" asc;"
 
 // OS Includes
 #include <stdio.h>

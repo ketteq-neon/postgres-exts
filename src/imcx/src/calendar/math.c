@@ -1,5 +1,5 @@
 /**
- * (C) KetteQ, Inc.
+ * (C) ketteQ, Inc.
  */
 
 

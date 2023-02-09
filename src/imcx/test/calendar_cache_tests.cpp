@@ -1,6 +1,6 @@
 /**
  * IMCX Unit Tests
- * (C) KetteQ
+ * (C) ketteQ
  *
  * Standalone Tests
  *

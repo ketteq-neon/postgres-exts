@@ -1,5 +1,5 @@
 --
--- (C) KetteQ, Inc.
+-- (C) ketteQ, Inc.
 --
 
 -- complain if script is sourced in psql, rather than via CREATE EXTENSION
