@@ -12,6 +12,7 @@
 #define DEF_Q1_GET_CALENDAR_IDS "select min(c.id), max(c.id) from plan.calendar c"
 #define DEF_Q2_GET_CAL_ENTRY_COUNT "select cd.calendar_id, count(*), (select LOWER(ct.\"name\") from plan.calendar ct where ct.id = cd.calendar_id) \"name\" from plan.calendar_date cd group by cd.calendar_id order by cd.calendar_id asc;"
 #define DEF_Q3_GET_ENTRIES "select cd.calendar_id, cd.\"date\" from plan.calendar_date cd order by cd.calendar_id asc, cd.\"date\" asc;"
+#define DEF_Q_VALIDATE_SCHEMA "SELECT count(table_name) = 2 FROM information_schema.tables where table_schema = 'plan' AND (table_name = 'calendar' or table_name = 'calendar_date');"
 
 // OS Includes
 #include <stdio.h>
@@ -45,6 +46,7 @@ void _PG_fini(void);
 void init_gucs();
 static void init_shared_memory();
 void ensure_cache_populated();
+void validate_compatible_db();
 
 // Exported Functions
 Datum calendar_info(PG_FUNCTION_ARGS);

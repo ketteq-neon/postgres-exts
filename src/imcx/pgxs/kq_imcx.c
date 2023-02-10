@@ -59,6 +59,7 @@ IMCX *imcx_ptr;
 char *q1_get_cal_min_max_id = DEF_Q1_GET_CALENDAR_IDS;
 char *q2_get_cal_entry_count = DEF_Q2_GET_CAL_ENTRY_COUNT;
 char *q3_get_cal_entries = DEF_Q3_GET_ENTRIES;
+char *q_validate_schema = DEF_Q_VALIDATE_SCHEMA;
 
 void init_gucs() {
 #ifndef NDEBUG
@@ -88,6 +89,17 @@ void init_gucs() {
 
   DefineCustomStringVariable("kq.calendar.q3_get_calendar_entries",
                              "Query to select all calendar entries. This will be copied to the cache.",
+                             NULL,
+                             &q3_get_cal_entries,
+                             DEF_Q3_GET_ENTRIES,
+                             PGC_USERSET,
+                             0,
+                             NULL,
+                             NULL,
+                             NULL);
+
+  DefineCustomStringVariable("kq.calendar.q_schema_validation",
+                             "Query to validate the existence of the required schemas.",
                              NULL,
                              &q3_get_cal_entries,
                              DEF_Q3_GET_ENTRIES,
@@ -142,13 +154,47 @@ static void init_shared_memory() {
   ereport(INFO, errmsg("Initialized Shared Memory."));
 }
 
+void validate_compatible_db() {
+#ifndef NDEBUG
+  ereport (DEBUG1, errmsg("validate_compatible_db()"));
+#endif
+  // Row Control
+  bool entry_is_null; // Pointer to boolean, TRUE if the last entry was NULL
+  // Connect to SPI
+  int32 spi_connect_result = SPI_connect();
+  if (spi_connect_result < 0) {
+    ereport(ERROR, errmsg("SPI_connect returned %d", spi_connect_result));
+  }
+  // Execute Q0, validate schemas
+  if (SPI_execute(q_validate_schema, true, 0) != SPI_OK_SELECT || SPI_processed == 0) {
+    SPI_finish();
+    ereport(ERROR, errmsg("Cannot validate schemas."));
+  }
+  HeapTuple validation_tuple = SPI_tuptable->vals[0];
+  bool valid = DatumGetBool(
+      SPI_getbinval(validation_tuple,
+                    SPI_tuptable->tupdesc,
+                    1,
+                    &entry_is_null));
+  SPI_finish();
+  if (!valid) {
+    ereport(ERROR, errmsg("The current database is not compatible with the ketteQ In-Memory Calendar Extension."));
+  }
+}
+
 void ensure_cache_populated() {
+#ifndef NDEBUG
+  ereport(DEF_DEBUG_LOG_LEVEL, errmsg("ensure_cache_populated()"));
+#endif
   if (imcx_ptr->cache_filled) {
 #ifndef NDEBUG
     ereport(DEF_DEBUG_LOG_LEVEL, errmsg("Cache already filled. Skipping calendar loading."));
 #endif
     return; // Do nothing if the cache is already filled
   }
+  // Validate before trying to load the cache
+  validate_compatible_db();
+  // Lock memory
   LWLockAcquire(shared_memory_ptr->lock, LW_EXCLUSIVE);
   if (!LWLockHeldByMe(shared_memory_ptr->lock)) {
     ereport(ERROR, errmsg("Cannot acquire AddinShmemInitLock"));
@@ -435,6 +481,10 @@ Datum calendar_info(PG_FUNCTION_ARGS) {
   add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
                          "Shared Memory Requested (MBytes)",
                          shared_memory_requested_str);
+
+  add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
+                         "[Q0] Schema and Tables Validation",
+                         q_validate_schema);
 
   add_row_to_2_col_tuple(attInMetadata, p_tuplestorestate,
                          "[Q1] Get Calendar IDs",
